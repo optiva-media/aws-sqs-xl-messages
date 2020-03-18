@@ -1,0 +1,12 @@
+#!/bin/bash
+
+## Run tests
+echo "###### Running tests ######"
+OUTPUT=`npm test`
+
+if (( $? != 0 )); then
+    echo "###### Tests failed ######"
+    echo "$OUTPUT"
+    exit 1
+fi
+echo "###### tests passed correctly ######"

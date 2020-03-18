@@ -1,0 +1,12 @@
+#!/bin/bash
+
+while read line; do
+  if [[ $line != \;* ]] && [[ $line =~ ([^[:space:]]+)\ =\ (.+) ]]; then
+    ALIAS=${BASH_REMATCH[1]}
+    CMD=${BASH_REMATCH[2]}
+    if [[ $CMD =~ ^\"(.+)\" ]]; then
+        CMD=${BASH_REMATCH[1]}
+    fi;
+    git config alias."$ALIAS" "$CMD"
+  fi;
+done <`pwd`/scripts/git-alias/git-alias
