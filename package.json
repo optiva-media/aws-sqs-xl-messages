@@ -21,7 +21,8 @@
         "url": "git+ssh://git@bitbucket.org:optivamedia/aws-sqs-xl-messages.git"
     },
     "keywords": [
-        "mediasuite"
+        "mediasuite",
+        "SQS"
     ],
     "author": "Optiva Media",
     "license": "ISC",
@@ -32,6 +33,7 @@
         "chai-http": "^4.3.0",
         "deepcopy": "^2.0.0",
         "dotenv": "^8.0.0",
+        "jasmine": "^3.5.0",
         "lodash": "^4.17.11",
         "mocha": "^6.1.4",
         "moment": "^2.24.0",
