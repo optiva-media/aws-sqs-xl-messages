@@ -14,8 +14,13 @@
     },
     "scripts": {
         "postinstall": "grunt setup",
-        "test": "mocha spec/**/*.js --reporter spec --timeout=120000"
+        "test": "./node_modules/.bin/jasmine",
+        "plato": "./node_modules/.bin/plato -r -n -d reports -e .eslintrc.json src/"
     },
+    "files": [
+        "spec/",
+        "src/"
+    ],
     "repository": {
         "type": "git",
         "url": "git+ssh://git@bitbucket.org:optivamedia/aws-sqs-xl-messages.git"
@@ -34,8 +39,8 @@
         "deepcopy": "^2.0.0",
         "dotenv": "^8.0.0",
         "jasmine": "^3.5.0",
+        "jasmine-console-reporter": "^3.1.0",
         "lodash": "^4.17.11",
-        "mocha": "^6.1.4",
         "moment": "^2.24.0",
         "sequelize-cli": "^3.2.0",
         "sequelize-fixtures": "^0.6.0",
@@ -55,6 +60,7 @@
         "grunt-eslint": "^21.1.0",
         "grunt-gitinfo": "^0.1.8",
         "load-grunt-config": "^2.0.0",
-        "load-grunt-tasks": "^5.0.0"
+        "load-grunt-tasks": "^5.0.0",
+        "plato": "^1.7.0"
     }
 }
