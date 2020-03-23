@@ -22,16 +22,3 @@ docs/
 .vscode/*
 
 npm-debug.log
-
-swagger-codegen-cli.jar
-
-output/
-
-.aws_config.json
-aws_config.json
-config/*.json
-config.json
-/.env
-*.iml
-
-/generated.*
