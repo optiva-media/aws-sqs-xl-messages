@@ -1,0 +1,13 @@
+# source this file in your .bash_profile
+
+_git_delbranch () {
+  _git_branch
+}
+
+_git_renamebranch () {
+  _git_branch
+}
+
+_git_mergerequest () {
+  _git_branch
+}

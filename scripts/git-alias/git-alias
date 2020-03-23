@@ -1,0 +1,50 @@
+[alias]
+  add = add -u
+  co = checkout
+  st = status
+  ci = commit
+  br = branch
+  root = !pwd
+  visual = !gitk &i
+  uncommit = reset --soft HEAD^
+  unstage = reset HEAD --
+  ; Removes local branches that dont't exist remotely
+  prunebr = remote prune origin
+  sh = stash
+  unsh = stash pop
+  lg = "log --graph --pretty=format:'%Cred%h%Creset - %C(bold blue)<%an>%Creset %C(yellow)%d%Creset %s %Cgreen(%cr)' --abbrev-commit --date=relative"
+  logfile = "! f() { git log --follow -p $1; }; f"
+  back = checkout -
+  update = "! git pull origin `git rev-parse --abbrev-ref HEAD`"
+  commits-since = "! f() { SINCE=\"yesterday\"; test $# -ne 0 && SINCE=$@; echo \"... commits since $SINCE\"; git log --pretty='%C(bold blue)<%an>%Creset - %s' --after=\"@{$SINCE}\"; }; f"
+  alias = "! f() { case $# in 0) git config --get-regexp 'alias.*' | colrm 1 6 | sed 's/[ ]/ = /' | sort |  awk -F= '{printf \"\\033[1;34m\" $1 \"\\033[0m \" \"=\";$1=\"\"; print $0}' ;; 1) git alias | grep -e \"$1\" ;; *) git config --global \"alias.$1\" \"$2\" ;; esac; }; f"
+  undo = "! f() { back=\"^\"; case \"$1\" in -h|--hard) test $2 -gt 1 > /dev/null 2>&1 && back=\"~$2\" git reset --hard HEAD$back && exit 0;;; -s|--soft) test $2 -gt 1 > /dev/null 2>&1 && back=\"~$2\";;*) test $1 -gt 1 > /dev/null 2>&1 && back=\"~$1\";;esac; git reset --soft HEAD$back; git reset }; f"
+  local-commits = "! f() { ref=$(git symbolic-ref HEAD); branch=${ref#refs/heads/}; git log --pretty='%C(bold blue)<%an>%Creset - %s' origin/${branch}..${branch} $*; }; f"
+  track = "! git for-each-ref --format=\"%(refname:short) <- %(upstream:short)\" refs/heads | awk -F \"<-\" '{ printf $1 \"\\033[1;34m\" \"<- \"; if ($2 == \" \") printf \"\\033[1;31m(No tracking branch)\"; else printf $2; print \"\\033[0m\"}'"
+  revertacommit = reset --hard HEAD~1
+  desc = "! f() { git stash --quiet --include-untracked;BRANCH=\"develop\";if [ -n \"$1\" ]; then BRANCH=\"$1\"; fi;git checkout \"$BRANCH\" --quiet;git pull --quiet origin \"$BRANCH\";git describe;git checkout - --quiet;git stash pop --quiet; }; f"
+  listmergedbranches = "! git branch -r --merged | grep -v -E '\\*|master|develop|release|origin-*\\/' | sed 's/origin\\///'"
+  removemergedbranches = "! git listmergedbranches | xargs -n 1 git push --delete --no-verify origin; git fetch origin --prune"
+  removelocalmergedbranches = "! git branch -l --merged | grep -v -E '\\*|master|develop|release|origin-*\\/' | sed 's/origin\\///' | xargs -n 1 git branch -d"
+  ; git whodidthat 7 file.txt 3 ----> return 3 revs of who touched line 7 in file.txt
+  whodidthat="! f() { LINE=$1 FILE=$2 REVS=$3; for commit in $(git rev-list -n $REVS HEAD $FILE); do git blame -n -L$LINE,+1 $commit -- $FILE; done; }; f"
+
+  ; usage: git cim "My commit message" <other commit params>
+  cim = "! f() { MESSAGE=\"$1\"; shift; PROJECT=$(cat .jira-project); BRANCH=`git rev-parse --abbrev-ref HEAD`; ISSUE=`echo \"$BRANCH\" | grep -E '.*\\/'$PROJECT'[0-9]+.*' | cut -d \"/\" -f 2 | cut -d \"-\" -f -2`; if [ -n \"${ISSUE}\" ]; then MESSAGE=\"$ISSUE $MESSAGE\"; fi; git commit -m\"$MESSAGE\" $@; }; f"
+  dev = "! git checkout develop; git pull origin develop"
+  devandback = "! f() { BRANCH=`git rev-parse --abbrev-ref HEAD`; git dev; git checkout $BRANCH; }; f"
+  prod = "! git checkout master; git pull origin master"
+  ; usage: git new-branch feature 1234 short-desc // feature/1234-short-desc
+  ; usage: git new-branch feature short-desc // feature/short-desc
+  new-branch = "! f() { TYPE=\"$1\"; shift; BRANCH=$TYPE/`git branch-name $@`; git co -b $BRANCH; git push --no-verify --set-upstream origin $BRANCH; }; f"
+  ; usage: git feature 1234 short-desc or git feature short-desc
+  feature = "! f() { git dev; git new-branch feature $@; }; f"
+  bug = "! f() { git dev; git new-branch bug $@; }; f"
+  storybug = "! f() { git update; git new-branch bug $@; }; f"
+  storytask = "! f() { git update; git new-branch task $@; }; f"
+  delbranch = "! f() { git dev; git br -d $1; git push --no-verify origin :$1; }; f"
+  renamebranch = "! f() { git branch -m $1 $2; git push --no-verify origin :$1; git push --set-upstream --no-verify origin $2; }; f"
+  mergedev = "! git dev; git checkout -; git update; git merge develop"
+
+  ; Aux alias (used by other alias)
+  branch-name = "! f() { BRANCH=\"$(cat .jira-project)$1\"; if [ -n \"${2}\" ]; then BRANCH=\"$BRANCH-$2\"; fi; echo $BRANCH; }; f"

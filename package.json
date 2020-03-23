@@ -1,0 +1,66 @@
+{
+    "name": "aws-sqs-xl-messages",
+    "version": "0.0.1",
+    "description": "This package is responsible for manage sqs messages bigger than 256KB",
+    "engines": {
+        "node": "^10.15.3",
+        "npm": "^6.10.1"
+    },
+    "eslintConfig": {
+        "env": {
+            "node": true,
+            "jasmine": true
+        }
+    },
+    "scripts": {
+        "postinstall": "grunt setup",
+        "test": "./node_modules/.bin/jasmine",
+        "plato": "./node_modules/.bin/plato -r -n -d reports -e .eslintrc.json src/"
+    },
+    "files": [
+        "spec/",
+        "src/"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+ssh://git@bitbucket.org:optivamedia/aws-sqs-xl-messages.git"
+    },
+    "keywords": [
+        "mediasuite",
+        "SQS"
+    ],
+    "author": "Optiva Media",
+    "license": "ISC",
+    "homepage": "https://bitbucket.org/optivamedia/aws-sqs-xl-messages/src",
+    "dependencies": {
+        "axios": "^0.19.0",
+        "chai": "^4.2.0",
+        "chai-http": "^4.3.0",
+        "deepcopy": "^2.0.0",
+        "dotenv": "^8.0.0",
+        "jasmine": "^3.5.0",
+        "jasmine-console-reporter": "^3.1.0",
+        "lodash": "^4.17.11",
+        "moment": "^2.24.0",
+        "sequelize-cli": "^3.2.0",
+        "sequelize-fixtures": "^0.6.0",
+        "time-grunt": "^2.0.0",
+        "userhome": "^1.0.0",
+        "util.promisify": "^1.0.0"
+    },
+    "devDependencies": {
+        "eslint-config-google": "^0.13.0",
+        "grunt": "^1.0.4",
+        "grunt-contrib-clean": "^2.0.0",
+        "grunt-contrib-compress": "^1.5.0",
+        "grunt-contrib-copy": "^1.0.0",
+        "grunt-contrib-symlink": "^1.0.0",
+        "grunt-contrib-uglify": "^4.0.1",
+        "grunt-contrib-watch": "^1.1.0",
+        "grunt-eslint": "^21.1.0",
+        "grunt-gitinfo": "^0.1.8",
+        "load-grunt-config": "^2.0.0",
+        "load-grunt-tasks": "^5.0.0",
+        "plato": "^1.7.0"
+    }
+}
