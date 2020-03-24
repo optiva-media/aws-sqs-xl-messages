@@ -41,12 +41,14 @@
         "jasmine": "^3.5.0",
         "jasmine-console-reporter": "^3.1.0",
         "lodash": "^4.17.11",
+        "mockery": "^2.1.0",
         "moment": "^2.24.0",
         "sequelize-cli": "^3.2.0",
         "sequelize-fixtures": "^0.6.0",
         "time-grunt": "^2.0.0",
         "userhome": "^1.0.0",
-        "util.promisify": "^1.0.0"
+        "util.promisify": "^1.0.0",
+        "uuid": "^7.0.2"
     },
     "devDependencies": {
         "eslint-config-google": "^0.13.0",
