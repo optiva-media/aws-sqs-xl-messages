@@ -57,6 +57,15 @@ module.exports = class ExtendedConfiguration {
     }
 
     /**
+     * Sets whether or not all messages regardless of their payload size should be stored in Amazon S3.
+     * @param {Boolean} alwaysThroughS3 - Whether or not all messages regardless of their payload size
+     *  should be stored in Amazon S3. Default: false
+     */
+    setAlwaysThroughS3(alwaysThroughS3) {
+        this.alwaysThroughS3 = alwaysThroughS3;
+    }
+
+    /**
      * Gets the Amazon S3 client which is being used for storing large-payload messages.
      * @return {Object} Reference to the Amazon S3 client which is being used.
      */
