@@ -3,6 +3,7 @@
 const RESERVE_ATTRIBUTE_NAME = 'SQSLargePayloadSize',
     RECEIPT_HANDLE_SEPARATOR = '-..SEPARATOR..-',
     UUID = require('uuid'),
+    S3Error = require('../../common/S3Error'),
     ExtendedConfiguration = require('./ExtendedConfiguration');
 
 // SQS is the SQS client class from aws-sdk. We inject it to avoid dependencies
@@ -78,7 +79,10 @@ module.exports = (SQS) =>
                 await this.replaceSQSmessage();
             }
 
-            return super.sendMessage(message);
+            return super.sendMessage(message).promise();
+            /* return {
+                promise: () => Promise.resolve(super.sendMessage(message).promise())
+            };*/
         }
 
         /**
@@ -88,34 +92,41 @@ module.exports = (SQS) =>
          * @return {Promise} - the response from the ReceiveMessage service method, as returned by AmazonSQS.
          */
         async receiveMessage(params) {
-            if (!params || !params.QueueUrl) {
-                throw new Error('Parameters and/or queue url cannot be null.');
-            }
+            try {
+                if (!params || !params.QueueUrl) {
+                    throw new Error('Parameters and/or queue url cannot be null.');
+                }
 
-            const messages = await super.receiveMessage(params).promise();
+                const messages = await super.receiveMessage(params).promise();
 
-            if (messages && messages.length > 0) {
-                for (const message of messages) {
-                    if (message[RESERVE_ATTRIBUTE_NAME]) {
-                        const downloadedMessage = await this.extendedConfig.getAmazonS3Client().getObject({
-                            Bucket: this.extendedConfig.getS3BucketName(),
-                            Key: message.MessageBody
-                        });
+                if (messages && messages.length > 0) {
+                    for (const message of messages) {
+                        if (message[RESERVE_ATTRIBUTE_NAME]) {
+                            const downloadedMessage = await this.extendedConfig.getAmazonS3Client().getObject({
+                                Bucket: this.extendedConfig.getS3BucketName(),
+                                Key: message.MessageBody
+                            }).promise();
 
+                            if (!downloadedMessage || !downloadedMessage.Body) {
+                                throw new S3Error('Error downloading message');
+                            }
+                            delete message[RESERVE_ATTRIBUTE_NAME];
 
-                        if (!downloadedMessage || !downloadedMessage.Body) {
-                            throw new Error('');
+                            message.ReceiptHandle = `${message.MessageBody}` + `${RECEIPT_HANDLE_SEPARATOR}${message.ReceiptHandle}`;
+
+                            message.MessageBody = downloadedMessage.Body;
                         }
-                        delete message[RESERVE_ATTRIBUTE_NAME];
+                    };
+                }
 
-                        message.ReceiptHandle = `${message.MessageBody}` + `${RECEIPT_HANDLE_SEPARATOR}${message.ReceiptHandle}`;
+                return messages;
+            } catch (err) {
+                if (!err) {
+                    err = new S3Error('Error downloading message');
+                }
 
-                        message.MessageBody = downloadedMessage.Body;
-                    }
-                };
+                throw err;
             }
-
-            return messages;
         }
 
 
@@ -125,28 +136,36 @@ module.exports = (SQS) =>
          * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
          */
         async deleteMessage(message) {
-            if (!message || !message.QueueUrl) {
-                throw new Error('Message and/or queue url cannot be null.');
-            }
-
-            if (this.extendedConfig.isLargePayloadSupportEnabled()) {
-                if (message.ReceiptHandle && this.isS3ReceiptHandle(message.ReceiptHandle)) {
-                    const s3Key = this.gets3Key(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR),
-                        receiptHandle = this.getReceiptHandle(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR);
-
-                    await this.extendedConfig.getAmazonS3Client().deleteObject({
-                        Bucket: this.extendedConfig.getS3BucketName(),
-                        Key: s3Key
-                    });
-
-                    message.ReceiptHandle = receiptHandle;
+            try {
+                if (!message || !message.QueueUrl) {
+                    throw new Error('Message and/or queue url cannot be null.');
                 }
-            }
 
-            return super.deleteMessage({
-                QueueUrl: message.QueueUrl,
-                ReceiptHandle: message.ReceiptHandle
-            });
+                if (this.extendedConfig.isLargePayloadSupportEnabled()) {
+                    if (message.ReceiptHandle && this.isS3ReceiptHandle(message.ReceiptHandle)) {
+                        const s3Key = this.gets3Key(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR),
+                            receiptHandle = this.getReceiptHandle(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR);
+
+                        await this.extendedConfig.getAmazonS3Client().deleteObject({
+                            Bucket: this.extendedConfig.getS3BucketName(),
+                            Key: s3Key
+                        }).promise();
+
+                        message.ReceiptHandle = receiptHandle;
+                    }
+                }
+
+                return super.deleteMessage({
+                    QueueUrl: message.QueueUrl,
+                    ReceiptHandle: message.ReceiptHandle
+                }).promise();
+            } catch (err) {
+                if (!err) {
+                    err = new S3Error('Error deleting message');
+                }
+
+                throw err;
+            }
         }
 
         /**
@@ -158,46 +177,54 @@ module.exports = (SQS) =>
          * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
          */
         async deleteMessageBatch(entries, queue) {
-            const messages = [];
+            try {
+                const messages = [];
 
-            if (!entries || entries.length == 0) {
-                throw new Error('Entries cannot be null.');
-            }
-
-            if (!queue) {
-                throw new Error('Queue cannot be null.');
-            }
-
-            for (const message of entries) {
-                if (!message.MessageId) {
-                    throw new Error('Missing MessageId on message');
+                if (!entries || entries.length == 0) {
+                    throw new Error('Entries cannot be null.');
                 }
 
-                if (this.extendedConfig.isLargePayloadSupportEnabled()) {
-                    if (message.ReceiptHandle && this.isS3ReceiptHandle(message.ReceiptHandle)) {
-                        const s3Key = this.gets3Key(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR),
-                            receiptHandle = this.getReceiptHandle(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR);
+                if (!queue) {
+                    throw new Error('Queue cannot be null.');
+                }
 
-                        await this.extendedConfig.getAmazonS3Client().deleteObject({
-                            Bucket: this.extendedConfig.getS3BucketName(),
-                            Key: s3Key
-                        });
-
-                        message.ReceiptHandle = receiptHandle;
+                for (const message of entries) {
+                    if (!message.MessageId) {
+                        throw new Error('Missing MessageId on message');
                     }
+
+                    if (this.extendedConfig.isLargePayloadSupportEnabled()) {
+                        if (message.ReceiptHandle && this.isS3ReceiptHandle(message.ReceiptHandle)) {
+                            const s3Key = this.gets3Key(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR),
+                                receiptHandle = this.getReceiptHandle(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR);
+
+                            await this.extendedConfig.getAmazonS3Client().deleteObject({
+                                Bucket: this.extendedConfig.getS3BucketName(),
+                                Key: s3Key
+                            }).promise();
+
+                            message.ReceiptHandle = receiptHandle;
+                        }
+                    }
+
+
+                    messages.push({
+                        Id: message.MessageId,
+                        ReceiptHandle: message.ReceiptHandle
+                    });
                 }
 
+                return super.deleteMessageBatch({
+                    QueueUrl: queue,
+                    Entries: messages
+                }).promise();
+            } catch (err) {
+                if (!err) {
+                    err = new S3Error('Error deleting batch message');
+                }
 
-                messages.push({
-                    Id: message.MessageId,
-                    ReceiptHandle: message.ReceiptHandle
-                });
+                throw err;
             }
-
-            return super.deleteMessageBatch({
-                QueueUrl: queue,
-                Entries: messages
-            }).promise();
         }
 
         /**
@@ -227,16 +254,20 @@ module.exports = (SQS) =>
                     Bucket: this.extendedConfig.getS3BucketName(),
                     Key: s3Key,
                     Body: message.MessageBody
-                });
+                }).promise();
 
                 if (!uploadedMessage) {
-                    throw new Error('Error uploading message');
+                    throw new S3Error('Error uploading message');
                 }
 
                 message[RESERVE_ATTRIBUTE_NAME] = Buffer.byteLength(message.MessageBody);
 
                 message.MessageBody = `s3://<${this.extendedConfig.getS3BucketName()}>/<${s3Key}>`;
             } catch (err) {
+                if (!err) {
+                    err = new S3Error('Error uploading message');
+                }
+
                 throw err;
             }
         }

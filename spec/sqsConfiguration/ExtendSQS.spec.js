@@ -1,6 +1,6 @@
 'use strict';
 
-const ExtendedConfiguration = require('../../app/src//sqsConfiguration/ExtendedConfiguration'),
+const ExtendedConfiguration = require('../../app/src/sqsConfiguration/ExtendedConfiguration'),
     mockery = require('mockery');
 
 let awsSdkMock;
@@ -126,6 +126,7 @@ describe('ExtendedSQS', () => {
                 } catch (err) {
                     error = err;
                 } finally {
+                    console.log(response);
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
                 }
