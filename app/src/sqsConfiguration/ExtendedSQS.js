@@ -9,6 +9,7 @@ const RESERVE_ATTRIBUTE_NAME = 'SQSLargePayloadSize',
 // SQS is the SQS client class from aws-sdk. We inject it to avoid dependencies
 // between this library and aws-sdk
 module.exports = (SQS) =>
+
     class ExtendedSQS extends SQS {
         /**
          *
@@ -25,7 +26,7 @@ module.exports = (SQS) =>
         }
 
         /**
-         *
+         * Check if receiptHandle is an url to s3
          * @param {String} receiptHandle
          * @return {Boolean} true if it a url to S3, false otherwise
          */
@@ -44,6 +45,9 @@ module.exports = (SQS) =>
             const s3BucketPosition = receiptHandle.indexOf(this.extendedConfig.getS3BucketName()),
                 separatorPosition = receiptHandle.indexOf(separator);
 
+            if (separatorPosition === -1 || s3BucketPosition === -1) {
+                throw new Error('Error getting s3Key');
+            }
             return receiptHandle.substring(s3BucketPosition + this.extendedConfig.getS3BucketName().length + 3, separatorPosition - 1);
         }
 
@@ -56,6 +60,10 @@ module.exports = (SQS) =>
         getReceiptHandle(receiptHandle, separator = RECEIPT_HANDLE_SEPARATOR) {
             const separatorPosition = receiptHandle.indexOf(separator);
 
+            if (separatorPosition === -1) {
+                throw new Error('Error getting original ReceiptHandle');
+            }
+
             return receiptHandle.substring(separatorPosition + separator.length, receiptHandle.length);
         }
 
@@ -64,25 +72,39 @@ module.exports = (SQS) =>
          * @param {Object} message - the necessary parameters to execute the service method on AmazonSQS.
          * @return {Promise} - the response from the SendMessage service method, as returned by AmazonSQS.
          */
-        async sendMessage(message) {
-            if (!message || !message.MessageBody) {
-                throw new Error('Message and/or message body cannot be null.');
+        async _sendMessage(message) {
+            try {
+                if (!message || !message.MessageBody) {
+                    throw new Error('Message and/or message body cannot be null.');
+                }
+
+                if (!message.QueueUrl) {
+                    throw new Error('Queue url cannot be null.');
+                }
+
+                if (this.extendedConfig.isAlwaysThroughS3() ||
+                            Buffer.byteLength(message.MessageBody) > this.extendedConfig.getMessageSizeThreshold()) {
+                    await this.replaceSQSmessage();
+                }
+
+                return super.sendMessage(message).promise();
+            } catch (err) {
+                throw err;
             }
+        }
 
-            if (!message.QueueUrl) {
-                throw new Error('Queue url cannot be null.');
-            }
-
-
-            if (this.extendedConfig.isAlwaysThroughS3() ||
-                        Buffer.byteLength(message.MessageBody) > this.extendedConfig.getMessageSizeThreshold()) {
-                await this.replaceSQSmessage();
-            }
-
-            return super.sendMessage(message).promise();
-            /* return {
-                promise: () => Promise.resolve(super.sendMessage(message).promise())
-            };*/
+        /**
+         * Wrapper of sendMessage into promise
+         * @param {Object} message - the necessary parameters to execute the service method on AmazonSQS.
+         * @return {Promise} - the response from the SendMessage service method, as returned by AmazonSQS.
+         */
+        sendMessage(message) {
+            return {
+                promise: async () => {
+                    const response = await this._sendMessage(message);
+                    return Promise.resolve(response);
+                }
+            };
         }
 
         /**
@@ -91,7 +113,7 @@ module.exports = (SQS) =>
          * @param {Object} params - the necessary parameters to execute the service method on AmazonSQS.
          * @return {Promise} - the response from the ReceiveMessage service method, as returned by AmazonSQS.
          */
-        async receiveMessage(params) {
+        async _receiveMessage(params) {
             try {
                 if (!params || !params.QueueUrl) {
                     throw new Error('Parameters and/or queue url cannot be null.');
@@ -99,43 +121,55 @@ module.exports = (SQS) =>
 
                 const messages = await super.receiveMessage(params).promise();
 
-                if (messages && messages.length > 0) {
-                    for (const message of messages) {
-                        if (message[RESERVE_ATTRIBUTE_NAME]) {
-                            const downloadedMessage = await this.extendedConfig.getAmazonS3Client().getObject({
-                                Bucket: this.extendedConfig.getS3BucketName(),
-                                Key: message.MessageBody
-                            }).promise();
-
-                            if (!downloadedMessage || !downloadedMessage.Body) {
-                                throw new S3Error('Error downloading message');
-                            }
-                            delete message[RESERVE_ATTRIBUTE_NAME];
-
-                            message.ReceiptHandle = `${message.MessageBody}` + `${RECEIPT_HANDLE_SEPARATOR}${message.ReceiptHandle}`;
-
-                            message.MessageBody = downloadedMessage.Body;
-                        }
-                    };
+                if (!messages || messages.length == 0) {
+                    throw new Error('Error receiving messages');
                 }
+
+                for (const message of messages) {
+                    if (message[RESERVE_ATTRIBUTE_NAME]) {
+                        const downloadedMessage = await this.extendedConfig.getAmazonS3Client().getObject({
+                            Bucket: this.extendedConfig.getS3BucketName(),
+                            Key: message.MessageBody
+                        }).promise();
+
+                        if (!downloadedMessage || !downloadedMessage.Body) {
+                            throw new S3Error('Error downloading message');
+                        }
+                        delete message[RESERVE_ATTRIBUTE_NAME];
+
+                        message.ReceiptHandle = `${message.MessageBody}` + `${RECEIPT_HANDLE_SEPARATOR}${message.ReceiptHandle}`;
+
+                        message.MessageBody = downloadedMessage.Body;
+                    }
+                };
+
 
                 return messages;
             } catch (err) {
-                if (!err) {
-                    err = new S3Error('Error downloading message');
-                }
-
                 throw err;
             }
         }
 
+        /**
+         * Wrapper of receiveMessages into promise
+         * @param {Object} params - the necessary parameters to execute the service method on AmazonSQS.
+         * @return {Promise} - the response from the receiveMessage service method, as returned by AmazonSQS.
+         */
+        receiveMessage(params) {
+            return {
+                promise: async () => {
+                    const response = await this._receiveMessage(params);
+                    return Promise.resolve(response);
+                }
+            };
+        }
 
         /**
          * Deletes the specified message from the specified queue and deletes the message payload from Amazon S3 when necessary
          * @param {Object} message
          * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
          */
-        async deleteMessage(message) {
+        async _deleteMessage(message) {
             try {
                 if (!message || !message.QueueUrl) {
                     throw new Error('Message and/or queue url cannot be null.');
@@ -169,6 +203,21 @@ module.exports = (SQS) =>
         }
 
         /**
+         * Wrapper of deleteMessage into promise
+         * @param {Object} message - the necessary parameters to execute the service method on AmazonSQS.
+         * @return {Promise} - the response from the deleteMessage service method, as returned by AmazonSQS.
+         */
+        deleteMessage(message) {
+            return {
+                promise: async () => {
+                    const response = await this._deleteMessage(message);
+                    return Promise.resolve(response);
+                }
+            };
+        }
+
+
+        /**
          * Deletes up to ten messages from the specified queue. This is a batch version of DeleteMessage.
          * The result of the delete action on each message is reported individually in the response.
          * Also deletes the message payloads from Amazon S3 when necessary.
@@ -176,7 +225,7 @@ module.exports = (SQS) =>
          * @param {String} queue
          * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
          */
-        async deleteMessageBatch(entries, queue) {
+        async _deleteMessageBatch(entries, queue) {
             try {
                 const messages = [];
 
@@ -219,14 +268,24 @@ module.exports = (SQS) =>
                     Entries: messages
                 }).promise();
             } catch (err) {
-                if (!err) {
-                    err = new S3Error('Error deleting batch message');
-                }
-
                 throw err;
             }
         }
 
+        /**
+         * Wrapper of deleteMessageBatch into promise
+         * @param {Array} entries
+         * @param {String} queue
+         * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
+         */
+        deleteMessageBatch(entries, queue) {
+            return {
+                promise: async () => {
+                    const response = await this._deleteMessageBatch(entries, queue);
+                    return Promise.resolve(response);
+                }
+            };
+        }
         /**
          * Replace SQS message by an S3 reference when sending a message. This method receives and mutates the sqs message to be sent.
          * @param {Object} message - Message to store in S3 bucket

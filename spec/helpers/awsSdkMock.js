@@ -29,7 +29,7 @@
                 promise: () => Promise.reject(new Error('QueueUrl and MessageBody must be provided!'))
             };
         }
-        console.log('llega aqui');
+
         return {
             promise: () => Promise.resolve({})
         };
@@ -80,13 +80,11 @@
             return {
                 promise: () => Promise.reject(new Error('Bucket and Key must be provided!'))
             };
-            // throw new Error('Bucket and Key must be provided!');
         }
 
         return {
             promise: () => Promise.resolve({Body: {}})
         };
-        // return {Body: {}};
     };
 
     S3.prototype.deleteObject = function(params) {

@@ -81,7 +81,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.sendMessage({});
+                    response = await sqs.sendMessage({}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -101,7 +101,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.sendMessage(message);
+                    response = await sqs.sendMessage(message).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -122,11 +122,10 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.sendMessage(message);
+                    response = await sqs.sendMessage(message).promise();
                 } catch (err) {
                     error = err;
                 } finally {
-                    console.log(response);
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
                 }
@@ -155,7 +154,7 @@ describe('ExtendedSQS', () => {
                     let response;
 
                     try {
-                        response = await sqs.sendMessage(message);
+                        response = await sqs.sendMessage(message).promise();
                     } catch (err) {
                         error = err;
                     } finally {
@@ -184,7 +183,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.receiveMessage({});
+                    response = await sqs.receiveMessage({}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -202,7 +201,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.receiveMessage({QueueUrl});
+                    response = await sqs.receiveMessage({QueueUrl}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -238,7 +237,7 @@ describe('ExtendedSQS', () => {
                     let response;
 
                     try {
-                        response = await sqs.receiveMessage({QueueUrl});
+                        response = await sqs.receiveMessage({QueueUrl}).promise();
                     } catch (err) {
                         error = err;
                     } finally {
@@ -262,7 +261,7 @@ describe('ExtendedSQS', () => {
                     let response;
 
                     try {
-                        response = await sqs.receiveMessage({QueueUrl});
+                        response = await sqs.receiveMessage({QueueUrl}).promise();
                     } catch (err) {
                         error = err;
                     } finally {
@@ -291,7 +290,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessage({});
+                    response = await sqs.deleteMessage({}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -316,7 +315,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessage(message);
+                    response = await sqs.deleteMessage(message).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -344,7 +343,7 @@ describe('ExtendedSQS', () => {
                     let response;
 
                     try {
-                        response = await sqs.deleteMessage(message);
+                        response = await sqs.deleteMessage(message).promise();
                     } catch (err) {
                         error = err;
                     } finally {
@@ -382,7 +381,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessageBatch({});
+                    response = await sqs.deleteMessageBatch({}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -398,7 +397,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessageBatch(messages);
+                    response = await sqs.deleteMessageBatch(messages).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -419,7 +418,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessageBatch(messages, queue);
+                    response = await sqs.deleteMessageBatch(messages, queue).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -443,7 +442,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessageBatch(messages, queue);
+                    response = await sqs.deleteMessageBatch(messages, queue).promise();
                 } catch (err) {
                     error = err;
                 } finally {
