@@ -64,8 +64,6 @@ describe('ExtendedSQS', () => {
             }
         };
 
-        // spyOn(s3Mock, 'upload').and.callThrough();
-
         ExtendedSQS = require('../../app/src/sqsConfiguration/ExtendedSQS')(SQS);
     });
 

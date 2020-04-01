@@ -300,9 +300,7 @@ module.exports = (SQS) =>
                     }).promise();
 
                 uploadingMessage.
-                    then(() => {
-                        // logger?
-                    });
+                    then(() => {});
             } catch {
                 throw new S3Error('Error uploading message');
             }
