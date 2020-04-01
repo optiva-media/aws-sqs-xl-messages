@@ -1,28 +1,73 @@
 'use strict';
 
 const ExtendedConfiguration = require('../../app/src/sqsConfiguration/ExtendedConfiguration'),
-    mockery = require('mockery');
+    S3Error = require('../../app/common/S3Error'),
+    SQS = function() {};
 
-let awsSdkMock;
+
 let ExtendedSQS;
-let s3Client;
+let s3Mock;
 
 describe('ExtendedSQS', () => {
-    beforeAll(()=>{
-        mockery.enable({useCleanCache: true, warnOnUnregistered: false});
+    beforeAll(() => {
+        SQS.prototype.sendMessage = function(message) {
+            return {
+                promise: () => Promise.resolve({})
+            };
+        };
 
-        awsSdkMock = require('../helpers/awsSdkMock');
-        mockery.registerMock('aws-sdk', awsSdkMock);
+        SQS.prototype.deleteMessage = function(message) {
+            return {
+                promise: () => Promise.resolve({})
+            };
+        };
 
-        ExtendedSQS = require('../../app/src/sqsConfiguration/ExtendedSQS')(awsSdkMock.SQS);
-        s3Client = awsSdkMock.S3.prototype;
+        SQS.prototype.deleteMessageBatch = function(params) {
+            return {
+                promise: () => Promise.resolve({})
+            };
+        };
+
+        SQS.prototype.receiveMessage = function(queue) {
+            return {
+                promise: () => Promise.resolve({
+                    'Messages': [{
+                        MessageId: '7b1e07c2-2aab-4a3a-82b9-190c130d58d4',
+                        ReceiptHandle: 'AQE...',
+                        MD5OfBody: 'c708249c52a2bebec91b9e9f3737ceef',
+                        MessageBody: 's3://<s3Bucket>/<s3Key>',
+                        MessageAttributes: [
+                            {
+                                Name: 'SQSLargePayloadSize',
+                                Value: 1000
+                            }
+                        ]
+                    }]})
+            };
+        };
+
+        s3Mock = {
+            upload: (param) => {
+                return {
+                    promise: () => Promise.resolve({})
+                };
+            },
+            getObject: (param) => {
+                return {
+                    promise: () => Promise.resolve({})
+                };
+            },
+            deleteObject: (param) => {
+                return {
+                    promise: () => Promise.resolve({})
+                };
+            }
+        };
+
+        // spyOn(s3Mock, 'upload').and.callThrough();
+
+        ExtendedSQS = require('../../app/src/sqsConfiguration/ExtendedSQS')(SQS);
     });
-
-    afterAll(() => {
-        mockery.deregisterAll();
-        mockery.disable();
-    });
-
 
     describe('Constructor', () => {
         describe('with empty parameters', () => {
@@ -46,7 +91,7 @@ describe('ExtendedSQS', () => {
 
             beforeEach(() => {
                 extendedConfig = new ExtendedConfiguration();
-                extendedConfig.enableLargePayloadSupport(s3Client, 'my-bucket');
+                extendedConfig.enableLargePayloadSupport(s3Mock, 'my-bucket');
             });
 
             it('should create an instance of ExtendedSQS', () => {
@@ -71,44 +116,8 @@ describe('ExtendedSQS', () => {
 
         beforeEach(() => {
             extendedConfig = new ExtendedConfiguration();
-            extendedConfig.enableLargePayloadSupport(s3Client, 'my-bucket');
+            extendedConfig.enableLargePayloadSupport(s3Mock, 'my-bucket');
             sqs = new ExtendedSQS({extendedConfig});
-        });
-
-        describe('with empty message', () => {
-            it('should throw an error', async () => {
-                let error;
-                let response;
-
-                try {
-                    response = await sqs.sendMessage({}).promise();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(response).toBeUndefined();
-                }
-            });
-        });
-
-        describe('with messageBody but without QueueUrl', () => {
-            it('should throw an error', async () => {
-                const message = {
-                    MessageBody: 'test'
-                };
-
-                let error;
-                let response;
-
-                try {
-                    response = await sqs.sendMessage(message).promise();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(response).toBeUndefined();
-                }
-            });
         });
 
         describe('with messageBody and QueueUrl', () => {
@@ -140,21 +149,16 @@ describe('ExtendedSQS', () => {
 
             beforeEach(() => {
                 extendedConfig.setAlwaysThroughS3(true);
-
-                spyOn(sqs, 'replaceSQSmessage').and.callFake(() => {
-                    message.MessageBody = 'replaceMessage';
-
-                    return message;
-                });
+                spyOn(sqs, 'replaceSQSmessage').and.callThrough();
             });
 
             describe('with messageBody and QueueUrl', () => {
-                it('should  modify and send message', async () => {
+                it('should modify and send message', async () => {
                     let error;
                     let response;
 
                     try {
-                        response = await sqs.sendMessage(message).promise();
+                        response = await sqs.sendMessage(message);
                     } catch (err) {
                         error = err;
                     } finally {
@@ -173,27 +177,15 @@ describe('ExtendedSQS', () => {
 
         beforeEach(() => {
             extendedConfig = new ExtendedConfiguration();
-            extendedConfig.enableLargePayloadSupport(s3Client, 'my-bucket');
+            extendedConfig.enableLargePayloadSupport(s3Mock, 'my-bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });
 
-        describe('without QueueUrl', () => {
-            it('should throw an error', async () => {
-                let error;
-                let response;
-
-                try {
-                    response = await sqs.receiveMessage({}).promise();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(response).toBeUndefined();
-                }
-            });
-        });
-
         describe('with QueueUrl', () => {
+            beforeEach(() => {
+                extendedConfig.disableLargePayloadSupport();
+            });
+
             it('should receive N messages', async () => {
                 const QueueUrl = 'test';
 
@@ -207,7 +199,7 @@ describe('ExtendedSQS', () => {
                 } finally {
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
-                    expect(response.length).toBeGreaterThan(0);
+                    expect(response.Messages.length).toBeGreaterThan(0);
                 }
             });
         });
@@ -215,21 +207,26 @@ describe('ExtendedSQS', () => {
         describe('when messages have SQSLargePayloadSize property', () => {
             const QueueUrl = 'test';
 
-            beforeEach(() => {
-                sqs.dataMap.receiveReturnedMessages = {
-                    Messages: [{
-                        MessageId: '7b1e07c2-2aab-4a3a-82b9-190c130d58d4',
-                        ReceiptHandle: 'AQE...',
-                        MD5OfBody: 'c708249c52a2bebec91b9e9f3737ceef',
-                        MessageBody: 's3://<s3Bucket>/<s3Key>',
-                        SQSLargePayloadSize: 1000
-                    }]
-                };
-            });
-
-            describe('and exists object in S3', () => {
+            describe('and object exists in S3', () => {
                 beforeEach(() => {
-                    spyOn(s3Client, 'getObject').and.callThrough();
+                    const downloadMessage = {
+                        Messages: [{
+                            MessageId: '7b1e07c2-2aab-4a3a-82b9-190c130d58d4',
+                            ReceiptHandle: 'AQE...',
+                            MD5OfBody: 'c708249c52a2bebec91b9e9f3737ceef',
+                            MessageBody: 's3://<s3Bucket>/<s3Key>',
+                            MessageAttributes: [
+                                {
+                                    Name: 'SQSLargePayloadSize',
+                                    Value: 1000
+                                }
+                            ]
+                        }]
+                    };
+
+                    spyOn(s3Mock, 'getObject').and.returnValue({
+                        promise: () => Promise.resolve(downloadMessage.Messages[0])
+                    });
                 });
 
                 it('should download and modify message', async () => {
@@ -243,17 +240,17 @@ describe('ExtendedSQS', () => {
                     } finally {
                         expect(error).toBeUndefined();
                         expect(response).toBeDefined();
-                        expect(s3Client.getObject).toHaveBeenCalled();
-                        expect(response.length).toBeGreaterThan(0);
-                        expect(response[0]['SQSLargePayloadSize']).toBeUndefined();
-                        expect(response[0]['ReceiptHandle']).toBeDefined();
+                        expect(s3Mock.getObject).toHaveBeenCalled();
+                        expect(response.Messages.length).toBeGreaterThan(0);
+                        expect(response.Messages[0]['SQSLargePayloadSize']).toBeUndefined();
+                        expect(response.Messages[0]['ReceiptHandle']).toBeDefined();
                     }
                 });
             });
 
-            describe('and does not exist object in S3', () => {
+            describe('and object does not exist in S3', () => {
                 beforeEach(() => {
-                    spyOn(s3Client, 'getObject').and.returnValue(null);
+                    spyOn(s3Mock, 'getObject').and.throwError();
                 });
 
                 it('should throw an error', async () => {
@@ -267,7 +264,7 @@ describe('ExtendedSQS', () => {
                     } finally {
                         expect(response).toBeUndefined();
                         expect(error).toBeDefined();
-                        expect(s3Client.getObject).toHaveBeenCalled();
+                        expect(s3Mock.getObject).toHaveBeenCalled();
                     }
                 });
             });
@@ -280,24 +277,8 @@ describe('ExtendedSQS', () => {
 
         beforeEach(() => {
             extendedConfig = new ExtendedConfiguration();
-            extendedConfig.enableLargePayloadSupport(s3Client, 's3Bucket');
+            extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
             sqs = new ExtendedSQS({extendedConfig});
-        });
-
-        describe('with empty message', () => {
-            it('should throw an error', async () => {
-                let error;
-                let response;
-
-                try {
-                    response = await sqs.deleteMessage({}).promise();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(response).toBeUndefined();
-                }
-            });
         });
 
         describe('with QueueUrl', () => {
@@ -331,13 +312,11 @@ describe('ExtendedSQS', () => {
                 ReceiptHandle: 's3://<s3Bucket>/<s3Key>-..SEPARATOR..-AQE...'
             };
 
-            beforeEach(() => {
-                spyOn(s3Client, 'deleteObject').and.callThrough();
-
-                spyOn(sqs, 'isS3ReceiptHandle').and.returnValue(true);
-            });
-
             describe('with QueueUrl', () => {
+                beforeEach(() => {
+                    spyOn(sqs, '_messageToDelete').and.callThrough();
+                });
+
                 it('should delete message', async () => {
                     let error;
                     let response;
@@ -348,9 +327,8 @@ describe('ExtendedSQS', () => {
                         error = err;
                     } finally {
                         expect(error).toBeUndefined();
-                        expect(s3Client.deleteObject).toHaveBeenCalled();
-                        expect(sqs.isS3ReceiptHandle).toHaveBeenCalled();
                         expect(response).toBeDefined();
+                        expect(sqs._messageToDelete).toHaveBeenCalled();
                     }
                 });
             });
@@ -366,59 +344,23 @@ describe('ExtendedSQS', () => {
                     '"file_size": 200}]}'
             }],
             queue = 'test';
+
         let extendedConfig;
         let sqs;
 
         beforeEach(() => {
             extendedConfig = new ExtendedConfiguration();
-            extendedConfig.enableLargePayloadSupport(s3Client, 's3Bucket');
+            extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });
 
-        describe('with empty messages', () => {
-            it('should throw an error', async () => {
-                let error;
-                let response;
-
-                try {
-                    response = await sqs.deleteMessageBatch({}).promise();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(response).toBeUndefined();
-                }
-            });
-        });
-
-        describe('without queue', () => {
-            it('should throw an error', async () => {
-                let error;
-                let response;
-
-                try {
-                    response = await sqs.deleteMessageBatch(messages).promise();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(response).toBeUndefined();
-                }
-            });
-        });
-
-
-        describe('with message and queue', () => {
-            beforeEach(() => {
-                spyOn(sqs, 'isS3ReceiptHandle').and.returnValue(false);
-            });
-
+        describe('with messages and queue', () => {
             it('should delete message', async () => {
                 let error;
                 let response;
 
                 try {
-                    response = await sqs.deleteMessageBatch(messages, queue).promise();
+                    response = await sqs.deleteMessageBatch({Entries: messages, QueueUrl: queue}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -432,9 +374,7 @@ describe('ExtendedSQS', () => {
             beforeEach(() => {
                 messages[0]['ReceiptHandle'] = 's3://<s3Bucket>/<s3Key>-..SEPARATOR..-AQE...';
 
-                spyOn(s3Client, 'deleteObject').and.callThrough();
-
-                spyOn(sqs, 'isS3ReceiptHandle').and.returnValue(true);
+                spyOn(sqs, '_messageToDelete').and.callThrough();
             });
 
             it('should modify receiptHandle and delete messages', async () => {
@@ -442,14 +382,47 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessageBatch(messages, queue).promise();
+                    response = await sqs.deleteMessageBatch({Entries: messages, QueueUrl: queue}).promise();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(s3Client.deleteObject).toHaveBeenCalled();
-                    expect(sqs.isS3ReceiptHandle).toHaveBeenCalled();
+                    expect(sqs._messageToDelete).toHaveBeenCalled();
                     expect(response).toBeDefined();
+                }
+            });
+        });
+    });
+
+    describe('_messageToDelete', () => {
+        const message = {
+            QueueUrl: 'test',
+            ReceiptHandle: 's3://<s3Bucket>/<s3Key>-..SEPARATOR..-AQE...'
+        };
+
+        let sqs;
+        let extendedConfig;
+
+        beforeEach(() => {
+            extendedConfig = new ExtendedConfiguration();
+            extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
+            sqs = new ExtendedSQS({extendedConfig});
+        });
+
+        describe('when doesn\'t delete message', () => {
+            beforeEach(() => {
+                spyOn(s3Mock, 'deleteObject').and.throwError();
+            });
+
+            it('should throw error', () => {
+                let error;
+
+                try {
+                    sqs._messageToDelete(message);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    expect(error).toBeDefined();
                 }
             });
         });
@@ -466,49 +439,21 @@ describe('ExtendedSQS', () => {
 
         beforeEach(() => {
             extendedConfig = new ExtendedConfiguration();
-            extendedConfig.enableLargePayloadSupport(s3Client, 's3Bucket');
+            extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
             sqs = new ExtendedSQS({extendedConfig});
-        });
-
-        describe('with empty message', () => {
-            it('should throw an error', async () => {
-                let error;
-
-                try {
-                    await sqs.replaceSQSmessage();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                }
-            });
-        });
-
-        describe('without QueueUrl', () => {
-            it('should throw an error', async () => {
-                let error;
-
-                try {
-                    await sqs.replaceSQSmessage({});
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                }
-            });
         });
 
         describe('without s3 client and s3Bucket', () => {
             beforeEach(() => {
-                extendedConfig.disableLargePayloadSupport(s3Client, 's3Bucket');
+                extendedConfig.disableLargePayloadSupport(s3Mock, 's3Bucket');
                 sqs = new ExtendedSQS({extendedConfig});
             });
 
-            it('should throw an error', async () => {
+            it('should throw an error', () => {
                 let error;
 
                 try {
-                    await sqs.replaceSQSmessage(message);
+                    sqs.replaceSQSmessage(message);
                 } catch (err) {
                     error = err;
                 } finally {
@@ -520,26 +465,45 @@ describe('ExtendedSQS', () => {
         describe('when params necessary are passed and S3', () => {
             const messageBody = message.MessageBody;
 
-            beforeEach(() => {
-                spyOn(s3Client, 'upload').and.callThrough();
-            });
-
             describe('with QueueUrl', () => {
-                it('should delete message', async () => {
+                beforeEach(() => {
+                    spyOn(s3Mock, 'upload').and.callThrough();
+                });
+
+                it('should delete message', () => {
                     let error;
 
                     try {
-                        await sqs.replaceSQSmessage(message);
+                        sqs.replaceSQSmessage(message);
                     } catch (err) {
                         error = err;
                     } finally {
                         expect(error).toBeUndefined();
-                        expect(s3Client.upload).toHaveBeenCalled();
+                        expect(s3Mock.upload).toHaveBeenCalled();
                         expect(message['MessageBody']).toBeDefined();
-                        expect(message['SQSLargePayloadSize']).toBeDefined();
-                        expect(message['SQSLargePayloadSize']).toBe(Buffer.byteLength(messageBody));
+                        expect(message.MessageAttributes[0]['Name']).toBeDefined();
+                        expect(message.MessageAttributes[0]['Name']).toBe('SQSLargePayloadSize');
+                        expect(message.MessageAttributes[0]['Value']).toBe(Buffer.byteLength(messageBody));
                     }
                 });
+            });
+        });
+
+        describe('when doesn\'t upload message', () => {
+            beforeEach(() => {
+                spyOn(s3Mock, 'upload').and.throwError();
+            });
+
+            it('should throw an S3error', () => {
+                let error;
+                try {
+                    sqs.replaceSQSmessage(message);
+                } catch (err) {
+                    error = err;
+                } finally {
+                    expect(error).toBeDefined();
+                    expect(error).toBeInstanceOf(S3Error);
+                }
             });
         });
     });
