@@ -3,12 +3,19 @@
 const RESERVE_ATTRIBUTE_NAME = 'SQSLargePayloadSize',
     RECEIPT_HANDLE_SEPARATOR = '-..SEPARATOR..-',
     uuid = require('uuid'),
-    S3Error = require('../../common/S3Error'),
+    utils = require('./utils/ExtendedSQSUtils'),
     ExtendedConfiguration = require('./ExtendedConfiguration');
 
-// SQS is the SQS client class from aws-sdk. We inject it to avoid dependencies
-// between this library and aws-sdk
+/**
+ *
+ * @param {Object} SQS client class from aws-sdk. We inject it to avoid dependencies between this library and aws-sdk
+ * @return {Object}
+ */
 module.exports = (SQS) =>
+    /**
+     * @classdesc ExtendedSQS extends the functionality of Amazon SQS client to
+     *            support sqs messages bigger than 256KB transparently.
+     */
     class ExtendedSQS extends SQS {
         /**
          * Constructor of ExtendSQS
@@ -23,221 +30,164 @@ module.exports = (SQS) =>
             }
         }
 
-        /**
-         * Check if receiptHandle is an url to s3
-         * @param {String} receiptHandle
-         * @return {Boolean} true if it a url to S3, false otherwise
-         */
-        isS3ReceiptHandle(receiptHandle = '') {
-            return receiptHandle.includes(RECEIPT_HANDLE_SEPARATOR);
-        }
-
-        /**
-         * Get s3Key from the modified receiptHandle
-         * @param {String} receiptHandle
-         * @param {String} separator
-         * @return {String} s3Key
-         */
-        gets3Key(receiptHandle = '', separator = RECEIPT_HANDLE_SEPARATOR) {
-            const parts = receiptHandle.split(separator);
-
-            if (parts.length === 2) {
-                return parts[0];
-            } else {
-                return undefined;
-            }
-        }
-
-        /**
-         * Get the original receiptHandle from the modified receiptHandle
-         * @param {String} receiptHandle
-         * @param {String} separator
-         * @return {String} original receiptHandle
-         */
-        getReceiptHandle(receiptHandle = '', separator = RECEIPT_HANDLE_SEPARATOR) {
-            const parts = receiptHandle.split(separator);
-
-            if (parts.length === 2) {
-                return parts[1];
-            } else {
-                return undefined;
-            }
-        }
-
-        /**
-         * Get the indicated element from array
-         * @param {Array} messageAttributes
-         * @param {String} name
-         * @return {Object}
-         */
-        getMessageAttribute(messageAttributes = [], name ='') {
-            return messageAttributes.find((element) => element.Name === name);
-        }
-
-        /**
-         * Delete the indicated element from array
-         * @param {Array} messageAttributes
-         * @param {Object} attribute
-         */
-        deleteMessageAttribute(messageAttributes = [], attribute = {}) {
-            const index = messageAttributes.indexOf(attribute);
-            if (index > -1) {
-                messageAttributes.splice(index, 1);
-            }
-        }
 
         /**
          * Delivers a message to the specified queue and uploads the message payload to Amazon S3 if necessary.
-         * @param {Object} message - the necessary parameters to execute the service method on AmazonSQS.
+         * @param {Object} message - the necessary parameters to send a message by AmazonSQS.
          * @param {Function} callback -  Function to be called when it is necessary
          * @return {Promise} - the response from the SendMessage service method, as returned by AmazonSQS.
          */
         sendMessage(message, callback) {
-            if (this.extendedConfig.isAlwaysThroughS3() ||
-                                Buffer.byteLength(message.MessageBody) > this.extendedConfig.getMessageSizeThreshold()) {
-                this.replaceSQSmessage(message);
+            if (this.extendedConfig.isAlwaysThroughS3()
+            || Buffer.byteLength(message.MessageBody) > this.extendedConfig.getMessageSizeThreshold()) {
+                return this.uploadToS3AndMutateSQSMessage(message, callback);
+            } else {
+                return super.sendMessage(message, callback);
             }
-
-            if (callback) {
-                try {
-                    const response = super.sendMessage(message);
-                    return callback(null, response);
-                } catch (err) {
-                    return callback(err);
-                }
-            }
-
-            return super.sendMessage(message);
         }
 
         /**
-         * Retrieves one or more messages, with a maximum limit of 10 messages, from
-         * the specified queue. Downloads the message payloads from Amazon S3 when necessary.
-         * @param {Object} params - the necessary parameters to execute the service method on AmazonSQS.
-         * @return {Promise} - the response from the ReceiveMessage service method, as returned by AmazonSQS.
-         */
-        async _receiveMessage(params) {
-            const {Messages} = await super.receiveMessage(params).promise();
-            let largePayloadAttributeValue;
-
-            if (Messages && Messages.length > 0) {
-                for (const message of Messages) {
-                    largePayloadAttributeValue = this.getMessageAttribute(message.MessageAttributes, RESERVE_ATTRIBUTE_NAME);
-
-                    if (largePayloadAttributeValue && this.extendedConfig.isLargePayloadSupportEnabled()) {
-                        if (!this.extendedConfig.getAmazonS3Client() || !this.extendedConfig.getS3BucketName()) {
-                            throw new Error('S3 client and/or S3 bucket name cannot be null.');
-                        }
-
-                        let downloadedMessage;
-
-                        try {
-                            downloadedMessage = await this.extendedConfig.getAmazonS3Client().getObject({
-                                Bucket: this.extendedConfig.getS3BucketName(),
-                                Key: message.MessageBody
-                            }).promise();
-                        } catch {
-                            throw new S3Error('Error downloading message');
-                        }
-
-                        if (!downloadedMessage) {
-                            throw new S3Error('Error downloading message');
-                        }
-
-                        this.deleteMessageAttribute(message.MessageAttributes, RESERVE_ATTRIBUTE_NAME);
-
-                        message.ReceiptHandle = `${message.MessageBody}${RECEIPT_HANDLE_SEPARATOR}${message.ReceiptHandle}`;
-
-                        message.MessageBody = downloadedMessage.MessageBody;
-                    }
-                }
-            }
-
-            return {
-                Messages: Messages
-            };
-        }
-        /**
-         * Wrapper of receiveMessages into promise
-         * @param {Object} params - the necessary parameters to execute the service method on AmazonSQS.
+         * Downloads the message payloads from Amazon S3 and modify previous response from AmazonSQS.receiveMessage
+         * to delete innecessary atributes(SQSLargePayloadSize) and recover body and receiptHandle of every message (it if was on S3)
+         * @param {Object} response - messages from AmazonSQS.receiveMessage
          * @param {Function} callback - Function to be called when it is necessary
-         * @return {Promise}
+         * @return {Object} - all messages including those whose body was on s3
+         */
+        downloadS3ObjectsAndMutateSQSResponse(response, callback) {
+            const _response = response,
+
+                promises = response.Messages.map((message) => {
+                    if (message.MessageAttributes[RESERVE_ATTRIBUTE_NAME]) {
+                        if (!this.extendedConfig.isLargePayloadSupportEnabled()) {
+                            return Promise.reject(new Error(
+                                'ExtendedSQS::downloadS3ObjectsAndMutateSQSResponse a message refers to an S3' +
+                                ' object but large payload support is disabled'
+                            ));
+                        }
+
+                        const params = utils.s3Path2Params(message.Body);
+
+                        return this.extendedConfig.getAmazonS3Client().getObject(params).promise();
+                    } else {
+                        return Promise.resolve();
+                    }
+                });
+
+            return Promise.all(promises)
+                .then((s3Responses) => {
+                    for (let i = 0; i < _response.Messages; i++) {
+                        const message = _response.Messages[i],
+                            s3Response = s3Responses[i];
+
+                        if (s3Response) {
+                            delete message.MessageAttributes[RESERVE_ATTRIBUTE_NAME];
+                            message.ReceiptHandle = `${message.Body}${RECEIPT_HANDLE_SEPARATOR}${message.ReceiptHandle}`;
+                            message.Body = s3Response.Body.toString('utf8');
+                        }
+                    }
+
+                    if (callback) {
+                        callback(null, _response);
+                    } else {
+                        return _response;
+                    }
+                })
+                .catch(callback);
+        }
+
+        /**
+         * Retrieves one or more messages, from the specified queue.
+         * Downloads the message payloads from Amazon S3 when necessary.
+         * @param {Object} params - the necessary parameters to execute the service method on AmazonSQS.
+         * @param {String} params.QueueUrl - URL of the Amazon SQS queue from which messages are received.
+         * @param {Function} callback - Function to be called when it is necessary
+         * @return {Promise} - the response from the receiveMessage service method, as returned by AmazonSQS.
          */
         receiveMessage(params, callback) {
+            const sqsRequest = super.receiveMessage(params);
+
             if (callback) {
-                try {
-                    const response = this._receiveMessage(params);
-                    return callback(null, response);
-                } catch (err) {
-                    return callback(err);
-                }
+                sqsRequest
+                    .on('complete', ({error, data}) => {
+                        if (error) {
+                            callback(error);
+                        } else {
+                            this.downloadS3ObjectsAndMutateSQSResponse(data, callback);
+                        }
+                    });
+
+                sqsRequest.send();
+            } else {
+                const sqsRequestPromise = sqsRequest.promise;
+
+                sqsRequest.promise = () => {
+                    return sqsRequestPromise()
+                        .then((response) => {
+                            return this.downloadS3ObjectsAndMutateSQSResponse(response);
+                        });
+                };
             }
 
-            return {
-                promise: async () => {
-                    const response = await this._receiveMessage(params);
-                    return Promise.resolve(response);
-                }
-            };
+            return sqsRequest;
         }
 
         /**
-         * deletes the message payload from Amazon S3 if it is necessary
-         * @private
-         * @param {Object} message - Meessage to delete
-         */
-        _messageToDelete(message) {
-            if (this.extendedConfig.isLargePayloadSupportEnabled()
-                && this.isS3ReceiptHandle(message.ReceiptHandle)) {
-                const s3Key = this.gets3Key(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR),
-                    receiptHandle = this.getReceiptHandle(message.ReceiptHandle, RECEIPT_HANDLE_SEPARATOR);
-
-                if (!this.extendedConfig.getAmazonS3Client() || !this.extendedConfig.getS3BucketName()) {
-                    throw new Error('S3 client and/or S3 bucket name cannot be null.');
-                }
-
-                try {
-                    const deleteMessage = this.extendedConfig.getAmazonS3Client().deleteObject({
-                        Bucket: this.extendedConfig.getS3BucketName(),
-                        Key: s3Key
-                    }).promise();
-
-                    deleteMessage.then(()=>{});
-                } catch {
-                    throw new S3Error('Error deleting message');
-                }
-
-
-                message.ReceiptHandle = receiptHandle;
-            }
-        }
-
-        /**
-         * Deletes the specified message from the specified queue
-         * @param {Object} message
+         * Deletes the specified message from the specified queue and deletes the message payload from Amazon S3 when necessary
+         * @param {Object} params
+         * @param {String} params.QueueUrl - URL of the Amazon SQS queue from which messages are deleted.
+         * @param {String} params.ReceiptHandle - the receipt handle associated with the message to delete.
          * @param {Function} callback - Function to be called when it is necessary
          * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
          */
-        deleteMessage(message, callback) {
-            this._messageToDelete(message);
+        deleteMessage(params, callback) {
+            const {s3Bucket, s3Key, receiptHandle} = utils.parseReceiptHandle(params.ReceiptHandle);
 
-            if (callback) {
-                try {
-                    const response = super.deleteMessage({
-                        QueueUrl: message.QueueUrl,
-                        ReceiptHandle: message.ReceiptHandle
-                    });
+            if (s3Bucket && s3Key) {
+                if (!this.extendedConfig.isLargePayloadSupportEnabled()) {
+                    const err = new Error('ExtendedSQS::deleteMessage params refer to an S3 object but large payload support is disabled');
 
-                    return callback(null, response);
-                } catch (err) {
-                    return callback(err);
+                    if (callback) {
+                        callback(err);
+                        return;
+                    } else {
+                        throw err;
+                    }
                 }
-            }
 
-            return super.deleteMessage({
-                QueueUrl: message.QueueUrl,
-                ReceiptHandle: message.ReceiptHandle
-            });
+                params.ReceiptHandle = receiptHandle;
+
+                const s3Params = {
+                        Bucket: s3Bucket,
+                        Key: s3Key
+                    },
+                    s3Request = this.extendedConfig.getAmazonS3Client().deleteObject(s3Params),
+                    sqsRequest = super.deleteMessage(params);
+
+                if (callback) {
+                    s3Request
+                        .on('complete', ({error, data}) => {
+                            if (error) {
+                                callback(error);
+                            } else {
+                                sqsRequest.send(callback);
+                            }
+                        });
+
+                    s3Request.send();
+                } else {
+                    const s3RequestPromise = s3Request.promise;
+
+                    s3Request.promise = () => {
+                        return s3RequestPromise().then(() => {
+                            return sqsRequest.promise();
+                        });
+                    };
+                }
+
+                return s3Request;
+            } else {
+                return super.deleteMessage(params, callback);
+            }
         }
 
         /**
@@ -245,79 +195,154 @@ module.exports = (SQS) =>
          * The result of the delete action on each message is reported individually in the response.
          * Also deletes the message payloads from Amazon S3 when necessary.
          * @param {Object} params
+         * @param {Array<map>} params.Entries - A list of receipt handles for the messages to be deleted.
+         * @param {String} params.QueueUrl - URL of the Amazon SQS queue from which messages are deleted.
          * @param {Function} callback - Function to be called when it is necessary
-         * @return {Promise} The response from the DeleteMessage service method, as returned by AmazonSQS.
+         * @return {Promise} The response from the DeleteMessageBatch service method, as returned by AmazonSQS.
          */
         deleteMessageBatch(params = {}, callback) {
             const {Entries, QueueUrl} = params,
                 messages = [];
+            let s3Requests = [];
 
             if (Entries && Entries.length > 0) {
                 for (const message of Entries) {
-                    this._messageToDelete(message);
+                    const {s3Bucket, s3Key, receiptHandle} = utils.parseReceiptHandle(message.ReceiptHandle);
+
+                    if (s3Bucket && s3Key) {
+                        if (!this.extendedConfig.isLargePayloadSupportEnabled()) {
+                            const err = new Error(
+                                'ExtendedSQS::deleteMessageBatch params refer to an S3 object but large payload support is disabled'
+                            );
+
+                            if (callback) {
+                                callback(err);
+                                return;
+                            } else {
+                                throw err;
+                            }
+                        }
+
+                        const s3Params = {
+                            Bucket: s3Bucket,
+                            Key: s3Key
+                        };
+
+                        s3Requests.push(this.extendedConfig.getAmazonS3Client().deleteObject(s3Params));
+                    }
 
                     messages.push({
                         Id: message.MessageId,
-                        ReceiptHandle: message.ReceiptHandle
+                        ReceiptHandle: receiptHandle
                     });
                 }
             }
 
-            if (callback) {
-                const response = super.deleteMessage({
-                    QueueUrl: QueueUrl,
-                    Entries: messages
+            if (s3Requests.length > 0) {
+                const sqsRequest = super.deleteMessageBatch({
+                    Entries: messages,
+                    QueueUrl
                 });
-                return callback(null, response);
-            }
 
-            return super.deleteMessageBatch({
-                QueueUrl: QueueUrl,
-                Entries: messages
-            });
+                if (callback) {
+                    for (const s3Request of s3Requests) {
+                        s3Request.on('complete', ({error, data}) => {
+                            if (error) {
+                                callback(error);
+                            } else {
+                                Promise.resolve();
+                            }
+                        });
+
+                        s3Request.send();
+                    }
+
+                    sqsRequest.send(callback);
+                } else {
+                    const s3RequestPromise = [];
+
+                    for (const s3Request of s3Requests) {
+                        s3RequestPromise.push(s3Request.promise());
+                    }
+
+                    s3Requests = {};
+
+                    s3Requests.promise = () => {
+                        return Promise.all(s3RequestPromise).then(() => {
+                            return sqsRequest.promise();
+                        });
+                    };
+                }
+
+                return s3Requests;
+            } else {
+                return super.deleteMessageBatch({
+                    Entries: messages,
+                    QueueUrl
+                }, callback);
+            }
         }
 
         /**
          * Replace SQS message by an S3 reference when sending a message. This method receives and mutates the sqs message to be sent.
-         * @param {Object} message - Message to store in S3 bucket
+         * @param {Object} message - SQS Message which MessageBody will be stored in S3
+         * @param {Function} callback -  Function to be called when it is necessary
+         * @return {Promise} - the response from the upload method, as returned by AmazonS3.
          */
-        replaceSQSmessage(message) {
-            if (!this.extendedConfig.getAmazonS3Client() || !this.extendedConfig.getS3BucketName()) {
-                throw new Error('S3 client and/or S3 bucket name cannot be null.');
+        uploadToS3AndMutateSQSMessage(message, callback) {
+            if (!this.extendedConfig.isLargePayloadSupportEnabled()) {
+                const err = new Error('ExtendedSQS::sendMessage message is bigger than 256KB but large payload support is disabled');
+
+                if (callback) {
+                    callback(err);
+                    return;
+                } else {
+                    throw err;
+                }
             }
 
-            const s3Client = this.extendedConfig.getAmazonS3Client(),
-                s3Bucket = this.extendedConfig.getS3BucketName(),
-                s3Key = `${message.QueueUrl}/${uuid.v4()}`;
+            const s3Params = {
+                    Bucket: this.extendedConfig.getS3BucketName(),
+                    Key: `${message.QueueUrl}/${uuid.v4()}`
+                },
+                s3Request = this.extendedConfig.getAmazonS3Client().upload(s3Params);
 
-
-            try {
-                const uploadingMessage = s3Client
-                    .upload({
-                        Bucket: this.extendedConfig.getS3BucketName(),
-                        Key: s3Key,
-                        Body: message.MessageBody
-                    }).promise();
-
-                uploadingMessage.
-                    then(() => {
-                        // logger?
-                    });
-            } catch {
-                throw new S3Error('Error uploading message');
-            }
+            let sqsRequest = {};
 
             if (!message.MessageAttributes) {
-                message.MessageAttributes = [];
+                message.MessageAttributes = {};
             }
 
-            message.MessageAttributes.push({
-                Name: RESERVE_ATTRIBUTE_NAME,
-                Value: Buffer.byteLength(message.MessageBody),
-                Type: 'Number'
-            });
+            message.MessageAttributes[RESERVE_ATTRIBUTE_NAME] = {
+                DataType: 'Number',
+                Value: `${Buffer.byteLength(message.MessageBody)}`
+            };
 
-            message.MessageBody = `s3://<${s3Bucket}>/<${s3Key}>`;
+            message.MessageBody = `s3://${s3Params.Bucket}/${s3Params.Key}`;
+
+            sqsRequest = super.sendMessage(message);
+
+            if (callback) {
+                s3Request.on('complete', ({error, data}) => {
+                    if (error) {
+                        callback(error);
+                    } else {
+                        sqsRequest.send(callback);
+                    }
+                });
+
+                s3Request.send();
+            } else {
+                const s3RequestPromise = s3Request.promise;
+
+                s3Request.promise = () => {
+                    return s3RequestPromise.then(() => {
+                        return sqsRequest.promise();
+                    });
+                };
+            }
+
+            return s3Request;
         }
     };
 

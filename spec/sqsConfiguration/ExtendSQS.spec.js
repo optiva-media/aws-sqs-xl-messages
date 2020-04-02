@@ -1,7 +1,6 @@
 'use strict';
 
 const ExtendedConfiguration = require('../../app/src/sqsConfiguration/ExtendedConfiguration'),
-    S3Error = require('../../app/common/S3Error'),
     SQS = function() {};
 
 
@@ -35,13 +34,14 @@ describe('ExtendedSQS', () => {
                         MessageId: '7b1e07c2-2aab-4a3a-82b9-190c130d58d4',
                         ReceiptHandle: 'AQE...',
                         MD5OfBody: 'c708249c52a2bebec91b9e9f3737ceef',
-                        MessageBody: 's3://<s3Bucket>/<s3Key>',
-                        MessageAttributes: [
-                            {
+                        Body: 's3://<s3Bucket>/<s3Key>',
+                        MessageAttributes: {
+                            SQSLargePayloadSize: {
                                 Name: 'SQSLargePayloadSize',
-                                Value: 1000
+                                Value: 1000,
+                                DataType: 'Number'
                             }
-                        ]
+                        }
                     }]})
             };
         };
@@ -63,8 +63,6 @@ describe('ExtendedSQS', () => {
                 };
             }
         };
-
-        // spyOn(s3Mock, 'upload').and.callThrough();
 
         ExtendedSQS = require('../../app/src/sqsConfiguration/ExtendedSQS')(SQS);
     });
@@ -120,7 +118,7 @@ describe('ExtendedSQS', () => {
             sqs = new ExtendedSQS({extendedConfig});
         });
 
-        describe('with messageBody and QueueUrl', () => {
+        describe('with required params', () => {
             it('should send message', async () => {
                 const message = {
                     MessageBody: 'test',
@@ -149,10 +147,10 @@ describe('ExtendedSQS', () => {
 
             beforeEach(() => {
                 extendedConfig.setAlwaysThroughS3(true);
-                spyOn(sqs, 'replaceSQSmessage').and.callThrough();
+                spyOn(sqs, 'uploadToS3AndMutateSQSMessage').and.callThrough();
             });
 
-            describe('with messageBody and QueueUrl', () => {
+            describe('with required params', () => {
                 it('should modify and send message', async () => {
                     let error;
                     let response;
@@ -163,7 +161,7 @@ describe('ExtendedSQS', () => {
                         error = err;
                     } finally {
                         expect(error).toBeUndefined();
-                        expect(sqs.replaceSQSmessage).toHaveBeenCalled();
+                        expect(sqs.uploadToS3AndMutateSQSMessage).toHaveBeenCalled();
                         expect(response).toBeDefined();
                     }
                 });
@@ -181,9 +179,21 @@ describe('ExtendedSQS', () => {
             sqs = new ExtendedSQS({extendedConfig});
         });
 
-        describe('with QueueUrl', () => {
+        describe('with required params', () => {
             beforeEach(() => {
-                extendedConfig.disableLargePayloadSupport();
+                const downloadMessage = {
+                    Messages: [{
+                        MessageId: '7b1e07c2-2aab-4a3a-82b9-190c130d58d4',
+                        ReceiptHandle: 'AQE...',
+                        MD5OfBody: 'c708249c52a2bebec91b9e9f3737ceef',
+                        MessageBody: 's3://<s3Bucket>/<s3Key>',
+                        MessageAttributes: {}
+                    }]
+                };
+
+                spyOn(SQS.prototype, 'receiveMessage').and.returnValue({
+                    promise: () => Promise.resolve(downloadMessage)
+                });
             });
 
             it('should receive N messages', async () => {
@@ -209,24 +219,7 @@ describe('ExtendedSQS', () => {
 
             describe('and object exists in S3', () => {
                 beforeEach(() => {
-                    const downloadMessage = {
-                        Messages: [{
-                            MessageId: '7b1e07c2-2aab-4a3a-82b9-190c130d58d4',
-                            ReceiptHandle: 'AQE...',
-                            MD5OfBody: 'c708249c52a2bebec91b9e9f3737ceef',
-                            MessageBody: 's3://<s3Bucket>/<s3Key>',
-                            MessageAttributes: [
-                                {
-                                    Name: 'SQSLargePayloadSize',
-                                    Value: 1000
-                                }
-                            ]
-                        }]
-                    };
-
-                    spyOn(s3Mock, 'getObject').and.returnValue({
-                        promise: () => Promise.resolve(downloadMessage.Messages[0])
-                    });
+                    spyOn(sqs, 'downloadS3ObjectsAndMutateSQSResponse').and.callThrough();
                 });
 
                 it('should download and modify message', async () => {
@@ -240,31 +233,10 @@ describe('ExtendedSQS', () => {
                     } finally {
                         expect(error).toBeUndefined();
                         expect(response).toBeDefined();
-                        expect(s3Mock.getObject).toHaveBeenCalled();
+                        expect(sqs.downloadS3ObjectsAndMutateSQSResponse).toHaveBeenCalled();
                         expect(response.Messages.length).toBeGreaterThan(0);
                         expect(response.Messages[0]['SQSLargePayloadSize']).toBeUndefined();
                         expect(response.Messages[0]['ReceiptHandle']).toBeDefined();
-                    }
-                });
-            });
-
-            describe('and object does not exist in S3', () => {
-                beforeEach(() => {
-                    spyOn(s3Mock, 'getObject').and.throwError();
-                });
-
-                it('should throw an error', async () => {
-                    let error;
-                    let response;
-
-                    try {
-                        response = await sqs.receiveMessage({QueueUrl}).promise();
-                    } catch (err) {
-                        error = err;
-                    } finally {
-                        expect(response).toBeUndefined();
-                        expect(error).toBeDefined();
-                        expect(s3Mock.getObject).toHaveBeenCalled();
                     }
                 });
             });
@@ -281,13 +253,9 @@ describe('ExtendedSQS', () => {
             sqs = new ExtendedSQS({extendedConfig});
         });
 
-        describe('with QueueUrl', () => {
-            beforeEach(() => {
-                spyOn(sqs, 'isS3ReceiptHandle').and.returnValue(false);
-            });
-
+        describe('with required params', () => {
             it('should delete message', async () => {
-                const message = {
+                const params = {
                     QueueUrl: 'test',
                     ReceiptHandle: 'test'
                 };
@@ -296,7 +264,7 @@ describe('ExtendedSQS', () => {
                 let response;
 
                 try {
-                    response = await sqs.deleteMessage(message).promise();
+                    response = await sqs.deleteMessage(params).promise();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -307,28 +275,23 @@ describe('ExtendedSQS', () => {
         });
 
         describe('when receiptHandle is an url to S3', () => {
-            const message = {
+            const params = {
                 QueueUrl: 'test',
-                ReceiptHandle: 's3://<s3Bucket>/<s3Key>-..SEPARATOR..-AQE...'
+                ReceiptHandle: 's3://s3Bucket/s3Key-..SEPARATOR..-AQE...'
             };
 
-            describe('with QueueUrl', () => {
-                beforeEach(() => {
-                    spyOn(sqs, '_messageToDelete').and.callThrough();
-                });
-
+            describe('with required params', () => {
                 it('should delete message', async () => {
                     let error;
                     let response;
 
                     try {
-                        response = await sqs.deleteMessage(message).promise();
+                        response = await sqs.deleteMessage(params).promise();
                     } catch (err) {
                         error = err;
                     } finally {
                         expect(error).toBeUndefined();
                         expect(response).toBeDefined();
-                        expect(sqs._messageToDelete).toHaveBeenCalled();
                     }
                 });
             });
@@ -354,7 +317,7 @@ describe('ExtendedSQS', () => {
             sqs = new ExtendedSQS({extendedConfig});
         });
 
-        describe('with messages and queue', () => {
+        describe('with required params', () => {
             it('should delete message', async () => {
                 let error;
                 let response;
@@ -372,9 +335,7 @@ describe('ExtendedSQS', () => {
 
         describe('when messages has a url to S3', () => {
             beforeEach(() => {
-                messages[0]['ReceiptHandle'] = 's3://<s3Bucket>/<s3Key>-..SEPARATOR..-AQE...';
-
-                spyOn(sqs, '_messageToDelete').and.callThrough();
+                messages[0]['ReceiptHandle'] = 's3://s3Bucket/s3Key-..SEPARATOR..-AQE...';
             });
 
             it('should modify receiptHandle and delete messages', async () => {
@@ -387,48 +348,13 @@ describe('ExtendedSQS', () => {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(sqs._messageToDelete).toHaveBeenCalled();
                     expect(response).toBeDefined();
                 }
             });
         });
     });
 
-    describe('_messageToDelete', () => {
-        const message = {
-            QueueUrl: 'test',
-            ReceiptHandle: 's3://<s3Bucket>/<s3Key>-..SEPARATOR..-AQE...'
-        };
-
-        let sqs;
-        let extendedConfig;
-
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfiguration();
-            extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
-            sqs = new ExtendedSQS({extendedConfig});
-        });
-
-        describe('when doesn\'t delete message', () => {
-            beforeEach(() => {
-                spyOn(s3Mock, 'deleteObject').and.throwError();
-            });
-
-            it('should throw error', () => {
-                let error;
-
-                try {
-                    sqs._messageToDelete(message);
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                }
-            });
-        });
-    });
-
-    describe('replaceSQSmessage', () => {
+    describe('uploadToS3AndMutateSQSMessage', () => {
         const message = {
             QueueUrl: 'test',
             MessageBody: 'test'
@@ -453,7 +379,7 @@ describe('ExtendedSQS', () => {
                 let error;
 
                 try {
-                    sqs.replaceSQSmessage(message);
+                    return sqs.uploadToS3AndMutateSQSMessage(message);
                 } catch (err) {
                     error = err;
                 } finally {
@@ -462,48 +388,29 @@ describe('ExtendedSQS', () => {
             });
         });
 
-        describe('when params necessary are passed and S3', () => {
+        describe('when params necessary are passed to S3', () => {
             const messageBody = message.MessageBody;
 
-            describe('with QueueUrl', () => {
+            describe('with required params', () => {
                 beforeEach(() => {
                     spyOn(s3Mock, 'upload').and.callThrough();
                 });
 
-                it('should delete message', () => {
+                it('should upload and mutate message', () => {
                     let error;
 
                     try {
-                        sqs.replaceSQSmessage(message);
+                        return sqs.uploadToS3AndMutateSQSMessage(message);
                     } catch (err) {
                         error = err;
                     } finally {
                         expect(error).toBeUndefined();
                         expect(s3Mock.upload).toHaveBeenCalled();
                         expect(message['MessageBody']).toBeDefined();
-                        expect(message.MessageAttributes[0]['Name']).toBeDefined();
-                        expect(message.MessageAttributes[0]['Name']).toBe('SQSLargePayloadSize');
-                        expect(message.MessageAttributes[0]['Value']).toBe(Buffer.byteLength(messageBody));
+                        expect(message.MessageAttributes['SQSLargePayloadSize']).toBeDefined();
+                        expect(message.MessageAttributes['SQSLargePayloadSize']['Value']).toBe(`${Buffer.byteLength(messageBody)}`);
                     }
                 });
-            });
-        });
-
-        describe('when doesn\'t upload message', () => {
-            beforeEach(() => {
-                spyOn(s3Mock, 'upload').and.throwError();
-            });
-
-            it('should throw an S3error', () => {
-                let error;
-                try {
-                    sqs.replaceSQSmessage(message);
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeDefined();
-                    expect(error).toBeInstanceOf(S3Error);
-                }
             });
         });
     });
