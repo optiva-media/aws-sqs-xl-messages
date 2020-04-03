@@ -1,6 +1,6 @@
 'use strict';
 
-const ExtendedConfiguration = require('../src/extendedConfiguration'),
+const ExtendedConfig = require('../src/extendedConfig'),
     SQS = function() {};
 
 
@@ -88,7 +88,7 @@ describe('ExtendedSQS', () => {
             let extendedConfig;
 
             beforeEach(() => {
-                extendedConfig = new ExtendedConfiguration();
+                extendedConfig = new ExtendedConfig();
                 extendedConfig.enableLargePayloadSupport(s3Mock, 'my-bucket');
             });
 
@@ -113,7 +113,7 @@ describe('ExtendedSQS', () => {
         let sqs;
 
         beforeEach(() => {
-            extendedConfig = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
             extendedConfig.enableLargePayloadSupport(s3Mock, 'my-bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });
@@ -174,7 +174,7 @@ describe('ExtendedSQS', () => {
         let sqs;
 
         beforeEach(() => {
-            extendedConfig = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
             extendedConfig.enableLargePayloadSupport(s3Mock, 'my-bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });
@@ -248,7 +248,7 @@ describe('ExtendedSQS', () => {
         let sqs;
 
         beforeEach(() => {
-            extendedConfig = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
             extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });
@@ -312,7 +312,7 @@ describe('ExtendedSQS', () => {
         let sqs;
 
         beforeEach(() => {
-            extendedConfig = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
             extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });
@@ -364,7 +364,7 @@ describe('ExtendedSQS', () => {
         let sqs;
 
         beforeEach(() => {
-            extendedConfig = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
             extendedConfig.enableLargePayloadSupport(s3Mock, 's3Bucket');
             sqs = new ExtendedSQS({extendedConfig});
         });

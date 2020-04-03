@@ -4,7 +4,7 @@ const RESERVE_ATTRIBUTE_NAME = 'SQSLargePayloadSize',
     RECEIPT_HANDLE_SEPARATOR = '-..SEPARATOR..-',
     uuid = require('uuid'),
     utils = require('./common/utils'),
-    ExtendedConfiguration = require('./extendedConfiguration');
+    ExtendedConfig = require('./extendedConfig');
 
 /**
  *
@@ -24,7 +24,7 @@ module.exports = (SQS) =>
         constructor(options) {
             super(options);
             if (!options || !options.extendedConfig) {
-                this.extendedConfig = new ExtendedConfiguration();
+                this.extendedConfig = new ExtendedConfig();
             } else {
                 this.extendedConfig = options.extendedConfig;
             }

@@ -2,11 +2,11 @@
 
 const MAX_MESSAGE_SIZE = 262144;// Bytes
 /**
-* @classdesc ExtendedConfiguration is a helper class that enables us to manage sqs messages in S3 to overcome 256KB limit.
+* @classdesc ExtendedConfig is a helper class that enables us to manage sqs messages in S3 to overcome 256KB limit.
 */
-module.exports = class ExtendedConfiguration {
+module.exports = class ExtendedConfig {
     /**
-     * ExtendedConfiguration's constructor.
+     * ExtendedConfig's constructor.
      */
     constructor() {
         this.disableLargePayloadSupport();

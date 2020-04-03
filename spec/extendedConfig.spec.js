@@ -1,34 +1,34 @@
 'use strict';
 
-const ExtendedConfiguration = require('../src/extendedConfiguration');
+const ExtendedConfig = require('../src/extendedConfig');
 
-describe('ExtendedConfiguration', () => {
+describe('ExtendedConfig', () => {
     describe('Constructor', () => {
         describe('with empty parameters', () => {
-            it('should create an instance of ExtendedConfiguration', () => {
+            it('should create an instance of ExtendedConfig', () => {
                 let error;
-                let extendedConfiguration;
+                let extendedConfig;
 
                 try {
-                    extendedConfiguration = new ExtendedConfiguration();
+                    extendedConfig = new ExtendedConfig();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(extendedConfiguration).toBeDefined();
-                    expect(extendedConfiguration._s3).toBeUndefined();
-                    expect(extendedConfiguration._s3BucketName).toBeDefined();
-                    expect(extendedConfiguration._largePayloadSupport).toBe(false);
+                    expect(extendedConfig).toBeDefined();
+                    expect(extendedConfig._s3).toBeUndefined();
+                    expect(extendedConfig._s3BucketName).toBeDefined();
+                    expect(extendedConfig._largePayloadSupport).toBe(false);
                 }
             });
         });
     });
 
     describe('enableLargePayloadSupport', () => {
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
@@ -37,7 +37,7 @@ describe('ExtendedConfiguration', () => {
                 let response;
 
                 try {
-                    response = extendedConfiguration.enableLargePayloadSupport();
+                    response = extendedConfig.enableLargePayloadSupport();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -49,95 +49,95 @@ describe('ExtendedConfiguration', () => {
         });
 
         describe('with S3 and Bucket name', () => {
-            it('should modify extendedConfiguration instance', () => {
+            it('should modify extendedConfig instance', () => {
                 const bucketName = 'my-bucket';
                 let error;
 
                 try {
-                    extendedConfiguration.enableLargePayloadSupport({}, bucketName);
+                    extendedConfig.enableLargePayloadSupport({}, bucketName);
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(extendedConfiguration).toBeDefined();
-                    expect(extendedConfiguration._s3).toEqual({});
-                    expect(extendedConfiguration._s3BucketName).toBe(bucketName);
-                    expect(extendedConfiguration._largePayloadSupport).toBe(true);
+                    expect(extendedConfig).toBeDefined();
+                    expect(extendedConfig._s3).toEqual({});
+                    expect(extendedConfig._s3BucketName).toBe(bucketName);
+                    expect(extendedConfig._largePayloadSupport).toBe(true);
                 }
             });
         });
     });
 
     describe('disableLargePayloadSupport', () => {
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
-            it('should modify extendedConfiguration instance', () => {
+            it('should modify extendedConfig instance', () => {
                 let error;
 
                 try {
-                    extendedConfiguration.disableLargePayloadSupport();
+                    extendedConfig.disableLargePayloadSupport();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(extendedConfiguration).toBeDefined();
-                    expect(extendedConfiguration._s3).toBeUndefined();
-                    expect(extendedConfiguration._s3BucketName).toBeDefined();
-                    expect(extendedConfiguration._largePayloadSupport).toBe(false);
+                    expect(extendedConfig).toBeDefined();
+                    expect(extendedConfig._s3).toBeUndefined();
+                    expect(extendedConfig._s3BucketName).toBeDefined();
+                    expect(extendedConfig._largePayloadSupport).toBe(false);
                 }
             });
         });
     });
 
     describe('isLargePayloadSupportEnabled', () => {
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
-            it('should returns extendedConfiguration\'s _largePayloadSupport', () => {
+            it('should returns extendedConfig\'s _largePayloadSupport', () => {
                 let error;
                 let response;
 
                 try {
-                    response = extendedConfiguration.isLargePayloadSupportEnabled();
+                    response = extendedConfig.isLargePayloadSupportEnabled();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
-                    expect(response).toBe(extendedConfiguration._largePayloadSupport);
+                    expect(response).toBe(extendedConfig._largePayloadSupport);
                 }
             });
         });
     });
     describe('isAlwaysThroughS3', () => {
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
-            it('should returns extendedConfiguration\'s alwaysThroughS3', () => {
+            it('should returns extendedConfig\'s alwaysThroughS3', () => {
                 let error;
                 let response;
 
                 try {
-                    response = extendedConfiguration.isAlwaysThroughS3();
+                    response = extendedConfig.isAlwaysThroughS3();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
-                    expect(response).toBe(extendedConfiguration.alwaysThroughS3);
+                    expect(response).toBe(extendedConfig.alwaysThroughS3);
                 }
             });
         });
@@ -145,20 +145,20 @@ describe('ExtendedConfiguration', () => {
 
     describe('getAmazonS3Client', () => {
         const s3 = {};
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
-            extendedConfiguration.enableLargePayloadSupport(s3, 'test');
+            extendedConfig = new ExtendedConfig();
+            extendedConfig.enableLargePayloadSupport(s3, 'test');
         });
 
         describe('with empty parameters', () => {
-            it('should returns extendedConfiguration\'s s3 object', () => {
+            it('should returns extendedConfig\'s s3 object', () => {
                 let error;
                 let response;
 
                 try {
-                    response = extendedConfiguration.getAmazonS3Client();
+                    response = extendedConfig.getAmazonS3Client();
                 } catch (err) {
                     error = err;
                 } finally {
@@ -171,25 +171,25 @@ describe('ExtendedConfiguration', () => {
     });
 
     describe('getS3BucketName', () => {
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
-            it('should returns extendedConfiguration\'s s3BucketName', () => {
+            it('should returns extendedConfig\'s s3BucketName', () => {
                 let error;
                 let response;
 
                 try {
-                    response = extendedConfiguration.getS3BucketName();
+                    response = extendedConfig.getS3BucketName();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
-                    expect(response).toEqual(extendedConfiguration._s3BucketName);
+                    expect(response).toEqual(extendedConfig._s3BucketName);
                 }
             });
         });
@@ -198,66 +198,66 @@ describe('ExtendedConfiguration', () => {
     describe('setMessageSizeThreshold', () => {
         const MAX_MESSAGE_SIZE = 262144;
 
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
-            it(`should set ${MAX_MESSAGE_SIZE} in extendedConfiguration\'s messageSizeThreshold`, () => {
+            it(`should set ${MAX_MESSAGE_SIZE} in extendedConfig\'s messageSizeThreshold`, () => {
                 let error;
 
                 try {
-                    extendedConfiguration.setMessageSizeThreshold();
+                    extendedConfig.setMessageSizeThreshold();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(extendedConfiguration).toBeDefined();
-                    expect(extendedConfiguration.messageSizeThreshold).toBe(MAX_MESSAGE_SIZE);
+                    expect(extendedConfig).toBeDefined();
+                    expect(extendedConfig.messageSizeThreshold).toBe(MAX_MESSAGE_SIZE);
                 }
             });
         });
 
         describe('with an integer passed', () => {
-            it('should modify extendedConfiguration\'s messageSizeThreshold', () => {
+            it('should modify extendedConfig\'s messageSizeThreshold', () => {
                 const MESSAGE_SIZE = 100;
                 let error;
 
                 try {
-                    extendedConfiguration.setMessageSizeThreshold(MESSAGE_SIZE);
+                    extendedConfig.setMessageSizeThreshold(MESSAGE_SIZE);
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
-                    expect(extendedConfiguration).toBeDefined();
-                    expect(extendedConfiguration.messageSizeThreshold).toBe(MESSAGE_SIZE);
+                    expect(extendedConfig).toBeDefined();
+                    expect(extendedConfig.messageSizeThreshold).toBe(MESSAGE_SIZE);
                 }
             });
         });
     });
 
     describe('getMessageSizeThreshold', () => {
-        let extendedConfiguration;
+        let extendedConfig;
 
         beforeEach(() => {
-            extendedConfiguration = new ExtendedConfiguration();
+            extendedConfig = new ExtendedConfig();
         });
 
         describe('with empty parameters', () => {
-            it('should returns extendedConfiguration\'s messageSizeThreshold', () => {
+            it('should returns extendedConfig\'s messageSizeThreshold', () => {
                 let error;
                 let response;
 
                 try {
-                    response = extendedConfiguration.getMessageSizeThreshold();
+                    response = extendedConfig.getMessageSizeThreshold();
                 } catch (err) {
                     error = err;
                 } finally {
                     expect(error).toBeUndefined();
                     expect(response).toBeDefined();
-                    expect(response).toEqual(extendedConfiguration.messageSizeThreshold);
+                    expect(response).toEqual(extendedConfig.messageSizeThreshold);
                 }
             });
         });
