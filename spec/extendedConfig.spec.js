@@ -1,264 +1,142 @@
 'use strict';
 
-const ExtendedConfig = require('../src/extendedConfig');
-
 describe('ExtendedConfig', () => {
-    describe('Constructor', () => {
-        describe('with empty parameters', () => {
-            it('should create an instance of ExtendedConfig', () => {
-                let error;
-                let extendedConfig;
+    const ExtendedConfig = require('../src/extendedConfig');
 
-                try {
-                    extendedConfig = new ExtendedConfig();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(extendedConfig).toBeDefined();
-                    expect(extendedConfig._s3).toBeUndefined();
-                    expect(extendedConfig._s3BucketName).toBeDefined();
-                    expect(extendedConfig._largePayloadSupport).toBe(false);
-                }
-            });
+    let config;
+
+    beforeEach(() => {
+        config = new ExtendedConfig();
+    });
+
+    describe('constructor', () => {
+        beforeEach(() => {
+            spyOn(ExtendedConfig.prototype, 'disableLargePayloadSupport').and.callThrough();
+        });
+
+        it('should create instances', () => {
+            const config = new ExtendedConfig();
+
+            expect(config.disableLargePayloadSupport).toHaveBeenCalledTimes(1);
+            expect(config.alwaysThroughS3).toBeFalsy();
+            expect(config.messageSizeThreshold).toBe(262144);
         });
     });
 
     describe('enableLargePayloadSupport', () => {
-        let extendedConfig;
+        let s3Mock;
 
         beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
+            s3Mock = {};
         });
 
-        describe('with empty parameters', () => {
-            it('should throw an error', () => {
-                let error;
-                let response;
+        [
+            {s3: undefined, bucket: undefined},
+            {s3: undefined, bucket: null},
+            {s3: undefined, bucket: ''},
+            {s3: null, bucket: undefined},
+            {s3: null, bucket: null},
+            {s3: null, bucket: ''}
+        ].forEach(({s3, bucket}) => {
+            it(`should throw an error when arguments are wrong [s3=${s3}] | [bucket=${bucket}]`, () => {
+                let err;
 
                 try {
-                    response = extendedConfig.enableLargePayloadSupport();
-                } catch (err) {
-                    error = err;
+                    config.enableLargePayloadSupport(s3, bucket);
+                } catch (e) {
+                    err = e;
                 } finally {
-                    expect(error).toBeDefined();
-                    expect(error).toEqual((new Error('S3 client and/or S3 bucket name cannot be null.')));
-                    expect(response).toBeUndefined();
+                    expect(err).toBeInstanceOf(Error);
+                    expect(err.message).toContainStr('S3 client and/or S3 bucket name cannot be null');
                 }
             });
         });
 
-        describe('with S3 and Bucket name', () => {
-            it('should modify extendedConfig instance', () => {
-                const bucketName = 'my-bucket';
-                let error;
+        it('should store s3 client and bucket internally and turn on large support flag', () => {
+            const BUCKET_NAME = 'my-bucket';
 
-                try {
-                    extendedConfig.enableLargePayloadSupport({}, bucketName);
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(extendedConfig).toBeDefined();
-                    expect(extendedConfig._s3).toEqual({});
-                    expect(extendedConfig._s3BucketName).toBe(bucketName);
-                    expect(extendedConfig._largePayloadSupport).toBe(true);
-                }
-            });
+            config.enableLargePayloadSupport(s3Mock, BUCKET_NAME);
+
+            expect(config.s3).toBe(s3Mock);
+            expect(config.s3BucketName).toBe(BUCKET_NAME);
+            expect(config._largePayloadSupport).toBeTruthy();
         });
     });
 
     describe('disableLargePayloadSupport', () => {
-        let extendedConfig;
+        describe('when large payload support was disabled', () => {
+            beforeEach(() => {
+                config.disableLargePayloadSupport();
+            });
 
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
+            it('should remove internal s3 client and bucket; and turn off large support flag', () => {
+                config.disableLargePayloadSupport();
+
+                expect(config.s3).toBeUndefined();
+                expect(config.s3BucketName).toBe('');
+                expect(config._largePayloadSupport).toBeFalsy();
+            });
         });
 
-        describe('with empty parameters', () => {
-            it('should modify extendedConfig instance', () => {
-                let error;
+        describe('when large payload support was enabled', () => {
+            beforeEach(() => {
+                const s3Mock = {};
 
-                try {
-                    extendedConfig.disableLargePayloadSupport();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(extendedConfig).toBeDefined();
-                    expect(extendedConfig._s3).toBeUndefined();
-                    expect(extendedConfig._s3BucketName).toBeDefined();
-                    expect(extendedConfig._largePayloadSupport).toBe(false);
-                }
+                config.enableLargePayloadSupport(s3Mock, 'my-bucket');
+            });
+
+            it('should remove internal s3 client and bucket; and turn off large support flag', () => {
+                config.disableLargePayloadSupport();
+
+                expect(config.s3).toBeUndefined();
+                expect(config.s3BucketName).toBe('');
+                expect(config._largePayloadSupport).toBeFalsy();
             });
         });
     });
 
     describe('isLargePayloadSupportEnabled', () => {
-        let extendedConfig;
+        describe('when large payload support was disabled', () => {
+            beforeEach(() => {
+                config.disableLargePayloadSupport();
+            });
 
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
+            it('should return false', () => {
+                expect(config.isLargePayloadSupportEnabled()).toBeFalsy();
+            });
         });
 
-        describe('with empty parameters', () => {
-            it('should returns extendedConfig\'s _largePayloadSupport', () => {
-                let error;
-                let response;
+        describe('when large payload support was enabled', () => {
+            beforeEach(() => {
+                const s3Mock = {};
 
-                try {
-                    response = extendedConfig.isLargePayloadSupportEnabled();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(response).toBeDefined();
-                    expect(response).toBe(extendedConfig._largePayloadSupport);
-                }
+                config.enableLargePayloadSupport(s3Mock, 'my-bucket');
+            });
+
+            it('should return true', () => {
+                expect(config.isLargePayloadSupportEnabled()).toBeTruthy();
             });
         });
     });
+
     describe('isAlwaysThroughS3', () => {
-        let extendedConfig;
-
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
-        });
-
-        describe('with empty parameters', () => {
-            it('should returns extendedConfig\'s alwaysThroughS3', () => {
-                let error;
-                let response;
-
-                try {
-                    response = extendedConfig.isAlwaysThroughS3();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(response).toBeDefined();
-                    expect(response).toBe(extendedConfig.alwaysThroughS3);
-                }
+        describe('when alwaysThroughS3 was disabled', () => {
+            beforeEach(() => {
+                config.alwaysThroughS3 = false;
             });
-        });
-    });
 
-    describe('getAmazonS3Client', () => {
-        const s3 = {};
-        let extendedConfig;
-
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
-            extendedConfig.enableLargePayloadSupport(s3, 'test');
-        });
-
-        describe('with empty parameters', () => {
-            it('should returns extendedConfig\'s s3 object', () => {
-                let error;
-                let response;
-
-                try {
-                    response = extendedConfig.getAmazonS3Client();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(response).toBeDefined();
-                    expect(response).toEqual(s3);
-                }
-            });
-        });
-    });
-
-    describe('getS3BucketName', () => {
-        let extendedConfig;
-
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
-        });
-
-        describe('with empty parameters', () => {
-            it('should returns extendedConfig\'s s3BucketName', () => {
-                let error;
-                let response;
-
-                try {
-                    response = extendedConfig.getS3BucketName();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(response).toBeDefined();
-                    expect(response).toEqual(extendedConfig._s3BucketName);
-                }
-            });
-        });
-    });
-
-    describe('setMessageSizeThreshold', () => {
-        const MAX_MESSAGE_SIZE = 262144;
-
-        let extendedConfig;
-
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
-        });
-
-        describe('with empty parameters', () => {
-            it(`should set ${MAX_MESSAGE_SIZE} in extendedConfig\'s messageSizeThreshold`, () => {
-                let error;
-
-                try {
-                    extendedConfig.setMessageSizeThreshold();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(extendedConfig).toBeDefined();
-                    expect(extendedConfig.messageSizeThreshold).toBe(MAX_MESSAGE_SIZE);
-                }
+            it('should return false', () => {
+                expect(config.isAlwaysThroughS3()).toBeFalsy();
             });
         });
 
-        describe('with an integer passed', () => {
-            it('should modify extendedConfig\'s messageSizeThreshold', () => {
-                const MESSAGE_SIZE = 100;
-                let error;
-
-                try {
-                    extendedConfig.setMessageSizeThreshold(MESSAGE_SIZE);
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(extendedConfig).toBeDefined();
-                    expect(extendedConfig.messageSizeThreshold).toBe(MESSAGE_SIZE);
-                }
+        describe('when alwaysThroughS3 was enabled', () => {
+            beforeEach(() => {
+                config.alwaysThroughS3 = true;
             });
-        });
-    });
 
-    describe('getMessageSizeThreshold', () => {
-        let extendedConfig;
-
-        beforeEach(() => {
-            extendedConfig = new ExtendedConfig();
-        });
-
-        describe('with empty parameters', () => {
-            it('should returns extendedConfig\'s messageSizeThreshold', () => {
-                let error;
-                let response;
-
-                try {
-                    response = extendedConfig.getMessageSizeThreshold();
-                } catch (err) {
-                    error = err;
-                } finally {
-                    expect(error).toBeUndefined();
-                    expect(response).toBeDefined();
-                    expect(response).toEqual(extendedConfig.messageSizeThreshold);
-                }
+            it('should return true', () => {
+                expect(config.isAlwaysThroughS3()).toBeTruthy();
             });
         });
     });

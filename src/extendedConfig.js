@@ -1,12 +1,18 @@
 'use strict';
 
-const MAX_MESSAGE_SIZE = 262144;// Bytes
+const MAX_MESSAGE_SIZE = 262144; // Bytes
+
 /**
-* @classdesc ExtendedConfig is a helper class that enables us to manage sqs messages in S3 to overcome 256KB limit.
-*/
-module.exports = class ExtendedConfig {
+ * @classdesc A extended config for
+ * [sqs client options]{@link https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html#constructor-property}.
+ * ExtendedConfig encapsulates the integration with AWS S3; it also exposes methods to decide when an sqs message must
+ * be sent to S3. This is typically the 256B limit, but it may also be set up to send all sqs messages through S3.
+ */
+class ExtendedConfig {
     /**
-     * ExtendedConfig's constructor.
+     * Constructs a config object to be passed in to sqs clients. This object may have an s3 client and
+     * methods to decide when an sqs message must be sent through S3. By default, configs are set up
+     * with large payload support disabled.
      */
     constructor() {
         this.disableLargePayloadSupport();
@@ -16,33 +22,38 @@ module.exports = class ExtendedConfig {
     }
 
     /**
-     * Enables support for large-payload messages.
-     * @param {Object} s3 - Amazon S3 client which is going to be used for storing large-payload messages.
-     * @param {String} s3BucketName - Name of the bucket which is going to be used for storing large-payload messages.
-     *                           The bucket must be already created and configured in s3.
+     * This method is responsible for enabling large payload sqs messages. To enable such a support,
+     * an s3 client and bucket name are required. Once enabled, s3 client and bucket can be accessed
+     * from outside by accessing s3 and s3BucketName properties respectively.
+     *
+     * @param {Object} s3 - S3 client.
+     * @param {String} s3BucketName - bucket name that will store sqs messages.
      */
-    enableLargePayloadSupport(s3, s3BucketName = '') {
+    enableLargePayloadSupport(s3, s3BucketName) {
         if (!s3 || !s3BucketName) {
-            throw new Error('S3 client and/or S3 bucket name cannot be null.');
+            throw new Error('ExtendedConfig::enableLargePayloadSupport S3 client and/or S3 bucket name cannot be null.');
         }
 
-        this._s3 = s3;
-        this._s3BucketName = s3BucketName;
+        this.s3 = s3;
+        this.s3BucketName = s3BucketName;
         this._largePayloadSupport = true;
     }
 
     /**
-     * Disables support for large-payload messages.
+     * This method is responsible for disabling large payload sqs messages. When large payload support is disabled,
+     * sending a large sqs message will throw an error (as if aws-sdk sqs client were used). In addition, receiving
+     * large sqs message will throw an error too as there won't be an s3 client to download s3 objects.
      */
     disableLargePayloadSupport() {
-        this._s3 = undefined;
-        this._s3BucketName = '';
+        this.s3 = undefined;
+        this.s3BucketName = '';
         this._largePayloadSupport = false;
     }
 
     /**
-     * Check if the support for large-payload message if enabled.
-     * @return {Boolean} true if support for large-payload messages is enabled.
+     * Check if the support for large payload message if enabled.
+     *
+     * @return {Boolean} true if support for large payload messages is enabled, false otherwise.
      */
     isLargePayloadSupportEnabled() {
         return this._largePayloadSupport;
@@ -50,49 +61,12 @@ module.exports = class ExtendedConfig {
 
     /**
      * Checks whether or not all messages regardless of their payload size are being stored in Amazon S3.
-     * @return {Boolean} True if all messages regardless of their payload size are being stored in Amazon S3. Default: false
+     *
+     * @return {Boolean} true if all messages must be sent through S3, false otherwise.
      */
     isAlwaysThroughS3() {
         return this.alwaysThroughS3;
     }
+}
 
-    /**
-     * Sets whether or not all messages regardless of their payload size should be stored in Amazon S3.
-     * @param {Boolean} alwaysThroughS3 - Whether or not all messages regardless of their payload size
-     *  should be stored in Amazon S3. Default: false
-     */
-    setAlwaysThroughS3(alwaysThroughS3) {
-        this.alwaysThroughS3 = alwaysThroughS3;
-    }
-
-    /**
-     * Gets the Amazon S3 client which is being used for storing large-payload messages.
-     * @return {Object} Reference to the Amazon S3 client which is being used.
-     */
-    getAmazonS3Client() {
-        return this._s3;
-    }
-
-    /**
-     * Gets the name of the S3 bucket which is being used for storing large-payload messages.
-     * @return {String} The name of the bucket which is being used.
-     */
-    getS3BucketName() {
-        return this._s3BucketName;
-    }
-    /**
-     * Sets the message size threshold for storing message payloads in Amazon S3
-     * @param {Integer} messageSizeThreshold -   Message size threshold to be used for storing in Amazon S3.
-     */
-    setMessageSizeThreshold(messageSizeThreshold = MAX_MESSAGE_SIZE) {
-        this.messageSizeThreshold = messageSizeThreshold;
-    }
-
-    /**
-     * Gets the message size threshold for storing message payloads in Amazon S3
-     * @return {Integer} messageSizeThreshold - Message size threshold which is being used for storing in Amazon
-     */
-    getMessageSizeThreshold() {
-        return this.messageSizeThreshold;
-    }
-};
+module.exports = ExtendedConfig;
