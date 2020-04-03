@@ -3,28 +3,26 @@
 'use strict';
 
 module.exports = function(grunt) {
-    grunt.registerTask('setup:hooks', 'Prepares the GIT hooks',
-                       function() {
-                           var exec = require('child_process').exec,
-                               done = this.async();
+    grunt.registerTask('setup:hooks', 'Prepares the GIT hooks', function() {
+        var exec = require('child_process').exec,
+            done = this.async();
 
-                           grunt.task.run(['symlink:hooks']);
+        grunt.task.run(['symlink:hooks']);
 
-                           exec('chmod 777 scripts/git-hooks/*', function(error) {
-                               grunt.log.writeln((error) ? 'Error preparing GIT hooks.' :
-                                   'GIT hooks installed successfully.');
-                               done(!error);
-                           });
-                       }
-    );
+        exec('chmod 777 scripts/git-hooks/*', function(error) {
+            grunt.log.writeln(error ? 'Error preparing GIT hooks.' : 'GIT hooks installed successfully.');
+            done(!error);
+        });
+    });
 
     grunt.registerTask('setup:git-alias', 'Set up our custom git aliases', function() {
         var exec = require('child_process').exec,
             done = this.async();
 
-        exec('`pwd`/scripts/git-alias/setup_alias', function(error/* , stdout*/) {
-            grunt.log.writeln((error) ? 'Error! one or more aliases haven\'t been imported to .git/config.' :
-                'Git alias imported successfully!');
+        exec('`pwd`/scripts/git-alias/setup_alias', function(error /* , stdout*/) {
+            grunt.log.writeln(
+                error ? 'Error! one or more aliases haven\'t been imported to .git/config.' : 'Git alias imported successfully!'
+            );
             done(!error);
         });
     });
@@ -34,11 +32,11 @@ module.exports = function(grunt) {
             done = this.async(),
             cmd = [
                 '! grep -xq "source ~/.git-alias-autocomplete.sh" ~/.bash_profile',
-                'echo "source ~/.git-alias-autocomplete.sh" >> ~/.bash_profile'].join(' && ');
+                'echo "source ~/.git-alias-autocomplete.sh" >> ~/.bash_profile'
+            ].join(' && ');
 
-        exec(cmd, function(error/* , stdout*/) {
-            grunt.log.writeln((error) ? 'Error setting up git-alias autocompletation.' :
-                'Git alias autocompletation set up successfully!');
+        exec(cmd, function(error /* , stdout*/) {
+            grunt.log.writeln(error ? 'Error setting up git-alias autocompletation.' : 'Git alias autocompletation set up successfully!');
             done(true);
         });
     });
@@ -46,13 +44,10 @@ module.exports = function(grunt) {
     grunt.registerTask('setup:scripts', 'Change scripts permissions', function() {
         var exec = require('child_process').exec,
             done = this.async(),
-            cmd = [
-                'chmod 755 `pwd`/scripts/git-alias/setup_alias'
-            ].join(' && ');
+            cmd = ['chmod 755 `pwd`/scripts/git-alias/setup_alias'].join(' && ');
 
-        exec(cmd, function(error/* , stdout*/) {
-            grunt.log.writeln((error) ? 'Error changing scripts permissions.' :
-                'Scripts permissions changed correctly.');
+        exec(cmd, function(error /* , stdout*/) {
+            grunt.log.writeln(error ? 'Error changing scripts permissions.' : 'Scripts permissions changed correctly.');
             done(!error);
         });
     });

@@ -1,6 +1,6 @@
 'use strict';
 
-const ExtendedConfiguration = require('../../app/src/sqsConfiguration/ExtendedConfiguration'),
+const ExtendedConfiguration = require('../src/extendedConfiguration'),
     SQS = function() {};
 
 
@@ -64,7 +64,7 @@ describe('ExtendedSQS', () => {
             }
         };
 
-        ExtendedSQS = require('../../app/src/sqsConfiguration/ExtendedSQS')(SQS);
+        ExtendedSQS = require('../src/extendedSQS')(SQS);
     });
 
     describe('Constructor', () => {

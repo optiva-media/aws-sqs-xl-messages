@@ -16,10 +16,12 @@
                 }
             },
             changed: {
-                files: [{
-                    src: '{<%= git.changed.concat([""]) %>}',
-                    filter: isJS
-                }]
+                files: [
+                    {
+                        src: '{<%= git.changed.concat([""]) %>}',
+                        filter: isJS
+                    }
+                ]
             },
             ci: {
                 options: {

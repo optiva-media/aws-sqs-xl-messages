@@ -1,8 +1,8 @@
 'use strict';
 
-const utils = require('../../../app/src/sqsConfiguration/utils/ExtendedSQSUtils');
+const utils = require('../../src/common/utils');
 
-describe('ExtendedSQSUtils', () => {
+describe('Utils', () => {
     describe('s3Path2Params', () => {
         describe('with empty parameters', () => {
             it('should throw an error', () => {

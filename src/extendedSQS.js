@@ -3,8 +3,8 @@
 const RESERVE_ATTRIBUTE_NAME = 'SQSLargePayloadSize',
     RECEIPT_HANDLE_SEPARATOR = '-..SEPARATOR..-',
     uuid = require('uuid'),
-    utils = require('./utils/ExtendedSQSUtils'),
-    ExtendedConfiguration = require('./ExtendedConfiguration');
+    utils = require('./common/utils'),
+    ExtendedConfiguration = require('./extendedConfiguration');
 
 /**
  *
@@ -38,8 +38,8 @@ module.exports = (SQS) =>
          * @return {Promise} - the response from the SendMessage service method, as returned by AmazonSQS.
          */
         sendMessage(message, callback) {
-            if (this.extendedConfig.isAlwaysThroughS3()
-            || Buffer.byteLength(message.MessageBody) > this.extendedConfig.getMessageSizeThreshold()) {
+            if (this.extendedConfig.isAlwaysThroughS3() ||
+            Buffer.byteLength(message.MessageBody) > this.extendedConfig.getMessageSizeThreshold()) {
                 return this.uploadToS3AndMutateSQSMessage(message, callback);
             } else {
                 return super.sendMessage(message, callback);
