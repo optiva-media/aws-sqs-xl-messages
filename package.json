@@ -19,7 +19,7 @@
         "coverage": "nyc npm test",
         "coverage:ci": "nyc --silent --per-file=true npm test",
         "plato": "plato -r -n -d reports/plato -e .eslintrc.json src/",
-        "jsdoc": "jsdoc -p -P package.json -R README.md -c .jsdoc.json"
+        "jsdoc": "jsdoc -P package.json -R README.md -c .jsdoc.json"
     },
     "files": [
         "src/"
@@ -39,6 +39,7 @@
     "license": "ISC",
     "homepage": "https://bitbucket.org/optivamedia/aws-sqs-xl-messages/src",
     "dependencies": {
+        "lodash": "^4.17.15",
         "uuid": "^7.0.2"
     },
     "devDependencies": {

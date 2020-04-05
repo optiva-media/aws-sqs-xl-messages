@@ -33,12 +33,12 @@ Then you can use it in the code like this:
 
 ```js
 const {SQS, S3} = require('aws-sdk'),
-    {ExtendedSQS, ExtendedConfiguration} = require('aws-sqs-xl-messages')(SQS),
-    extendedConfig = new ExtendedConfiguration();
-
-extendedConfig.enableLargePayloadSupport(new S3(), 'my-bucket');
-
-let sqs = new ExtendedSQS({extendedConfig});
+    {SQSExt, Config} = require('aws-sqs-xl-messages')(SQS),
+    config = new Config();
+ 
+config.enableLargePayloadSupport(new S3(), 'my-bucket');
+ 
+let sqs = new SQSExt({extendedConfig: config}); // you can now use sqs as if it was an sqs client from aws-sdk
 ```
 
 ## Development
@@ -85,17 +85,17 @@ If you want to run just _some_ tests...
 * Run an specific test. You must rename jasmine methods as follows
 
 ```js
-const extendedSQSMixin = require('../src/extendedSQS'),
+const extendSQSMixin = require('../src/extendSQSMixin'),
     SQSMock = class SQS {};
 
 // Rename describe to fdescribe in order to test only this block.
 // You can also rename it to xdescribe in order to tell jasmine it must skip this block.
-describe('ExtendedSQS', () => {
+describe('extendSQSMixin', () => {
 
     // Rename it to fit in order to test only this spec.
     // You can also rename it to xit in order to tell jasmine it must skip this spec.
     it('should return an SQS client class', () => {
-        expect(extendedSQSMixin(SQSMock)).toBeInstanceOf(SQSMock);
+        expect(extendSQSMixin(SQSMock)).toBeInstanceOf(SQSMock);
     });
 });
 
@@ -111,7 +111,7 @@ A complete report will be generated at `reports/coverage/lcov-report/index.html`
 
 This project uses JSDoc automagically generate beatiful code documentation. You can locally generate the documentation by typing `npm run jsdoc`.
 
-An HTML version od the documentation will be generated at `docs/persistence-core/X.Y.Z/index.html`.
+An HTML version od the documentation will be generated at `docs/aws-sqs-xl-messages/X.Y.Z/index.html`.
 
 ## Code analysis
 
@@ -121,6 +121,7 @@ Reports are stored in `reports/plato/` and they can be easily checked at `report
 
 ## Dependencies
 
+* [lodash](https://lodash.com/)
 * [uuid](https://github.com/uuidjs/uuid)
 
 ## Development dependencies

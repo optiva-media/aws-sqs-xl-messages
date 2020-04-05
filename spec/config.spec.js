@@ -1,21 +1,21 @@
 'use strict';
 
-describe('ExtendedConfig', () => {
-    const ExtendedConfig = require('../src/extendedConfig');
+describe('Config', () => {
+    const Config = require('../src/config');
 
     let config;
 
     beforeEach(() => {
-        config = new ExtendedConfig();
+        config = new Config();
     });
 
     describe('constructor', () => {
         beforeEach(() => {
-            spyOn(ExtendedConfig.prototype, 'disableLargePayloadSupport').and.callThrough();
+            spyOn(Config.prototype, 'disableLargePayloadSupport').and.callThrough();
         });
 
         it('should create instances', () => {
-            const config = new ExtendedConfig();
+            const config = new Config();
 
             expect(config.disableLargePayloadSupport).toHaveBeenCalledTimes(1);
             expect(config.alwaysThroughS3).toBeFalsy();
@@ -47,7 +47,7 @@ describe('ExtendedConfig', () => {
                     err = e;
                 } finally {
                     expect(err).toBeInstanceOf(Error);
-                    expect(err.message).toContainStr('S3 client and/or S3 bucket name cannot be null');
+                    expect(err.message).toContain('Config::enableLargePayloadSupport');
                 }
             });
         });

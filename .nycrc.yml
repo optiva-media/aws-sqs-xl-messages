@@ -6,6 +6,7 @@ include:
 exclude:
   - "spec/**/*"
   - "**/*.spec.js"
+  - "**/*.mock.js"
 reporter:
   - lcov
   - text-summary

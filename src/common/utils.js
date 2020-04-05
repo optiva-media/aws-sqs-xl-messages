@@ -1,18 +1,24 @@
+/** @module utils */
+
 'use strict';
 
+const {URL} = require('url');
+
 /**
-* Arguments for configure s3 client and receiptHandle for sqs messages
-*
-* @typedef {Object} s3Client
-* @property {String} s3Bucket an object ready to query contentEvents
-* @property {String} s3Key true if result must be reversed
-*/
-/**
+ * An object containing the minimum properties to communicate with AWS S3 using aws-sdk.
  *
- * @param {String} s3Path
- * @return {Object} s3Client
+ * @typedef {Object} AWSS3Params
+ * @property {String} Bucket - The bucket name containing the object.
+ * @property {String} Key - Key of the object.
  */
-function s3Path2Params(s3Path = '') {
+
+/**
+ * This method is responsible for decomposing an s3 uri into an AWS object {Bucket, Key}.
+ *
+ * @param {String} s3Path - an s3 path in the format `s3://${bucket}/${key}`
+ * @return {AWSS3Params} a pair {Bucket, Key}.
+ */
+module.exports.s3Path2Params = (s3Path = '') => {
     const url = new URL(s3Path);
 
     if (url.protocol !== 's3:') {
@@ -23,36 +29,4 @@ function s3Path2Params(s3Path = '') {
         Bucket: url.hostname,
         Key: url.pathname.substring(1)
     };
-}
-
-/**
-* Arguments for configure s3 client and receiptHandle for sqs messages
-*
-* @typedef {Object} parseConfiguration
-* @property {String} s3Bucket The bucket name of the bucket required.
-* @property {String} s3Key Key name.
-* @property {String} receiptHandle receipt handle associated with the message to delete.
-*/
-/**
- * Builds an object to extract the argument required for using S3 client and SQS methods
- * @param {String} receiptHandle
- * @param {String} separator
- * @return {Object} parseConfiguration
- */
-function parseReceiptHandle(receiptHandle = '', separator = '-..SEPARATOR..-') {
-    const parts = receiptHandle.split(separator),
-        parseConfiguration = {s3Bucket: undefined, s3Key: undefined, receiptHandle: receiptHandle};
-
-    if (parts.length === 2) {
-        const {Bucket, Key} = s3Path2Params(parts[0]);
-
-        parseConfiguration.s3Bucket = Bucket;
-        parseConfiguration.s3Key = Key;
-        parseConfiguration.receiptHandle = parts[1];
-    }
-
-    return parseConfiguration;
-}
-
-module.exports.s3Path2Params = s3Path2Params;
-module.exports.parseReceiptHandle = parseReceiptHandle;
+};
