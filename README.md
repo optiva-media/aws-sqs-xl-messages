@@ -109,9 +109,9 @@ A complete report will be generated at `reports/coverage/lcov-report/index.html`
 
 ## JSDoc
 
-This project uses JSDoc automagically generate beatiful code documentation. You can locally generate the documentation by typing `npm run jsdoc`.
+This project uses JSDoc to automagically generate beatiful code documentation. You can locally generate the documentation by typing `npm run jsdoc`.
 
-An HTML version od the documentation will be generated at `docs/aws-sqs-xl-messages/X.Y.Z/index.html`.
+An HTML version of the documentation will be generated at `docs/aws-sqs-xl-messages/X.Y.Z/index.html`.
 
 ## Code analysis
 
