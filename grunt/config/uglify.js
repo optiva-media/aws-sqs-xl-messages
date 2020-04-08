@@ -8,9 +8,9 @@
                 // beautify: true,
                 preserveComments: false,
                 compress: {
-                    'global_defs': {
-                        'TESTING': false,
-                        'DEBUG': grunt.option('keep-log') || false
+                    global_defs: {
+                        TESTING: false,
+                        DEBUG: grunt.option('keep-log') || false
                     }
                 }
             }

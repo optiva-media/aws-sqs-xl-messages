@@ -8,7 +8,8 @@
         require('load-grunt-config')(grunt, {
             configPath: require('path').join(process.cwd(), 'grunt/config'),
             init: true,
-            data: { // data passed into config.  Can use with <%= test %>
+            data: {
+                // data passed into config.  Can use with <%= test %>
                 pkg: grunt.file.readJSON('package.json'),
                 meta: {
                     dirs: {
@@ -19,12 +20,15 @@
                     },
                     files: {
                         SRC_JS: ['<%= meta.dirs.SRC %>**/*.js'],
-                        ALL_JS: ['<%= meta.dirs.SRC %>**/*.js', '<%= meta.files.SPECS %=>**/*.js',
-                            'mocks/**/*.js', 'Gruntfile.js', 'grunt/**/*.js'],
+                        ALL_JS: [
+                            '<%= meta.dirs.SRC %>**/*.js',
+                            '<%= meta.files.SPECS %=>**/*.js',
+                            'mocks/**/*.js',
+                            'Gruntfile.js',
+                            'grunt/**/*.js'
+                        ],
                         SPECS: '<%= meta.dirs.TESTS %>**/*spec.js',
-                        COVERAGE: [
-                            '<%= meta.files.SRC_JS %>'
-                        ]
+                        COVERAGE: ['<%= meta.files.SRC_JS %>']
                     }
                 }
             }

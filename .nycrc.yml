@@ -1,0 +1,23 @@
+all: true
+extension:
+  - .js
+include:
+  - "src/**/*.js"
+exclude:
+  - "spec/**/*"
+  - "**/*.spec.js"
+  - "**/*.mock.js"
+reporter:
+  - lcov
+  - text-summary
+report-dir: ./reports/coverage
+watermarks:
+  lines: [85, 95]
+  functions: [85, 95]
+  branches: [85, 95]
+  statements: [85, 95]
+check-coverage: true
+lines: 85
+functions: 85
+branches: 85
+statements: 85
