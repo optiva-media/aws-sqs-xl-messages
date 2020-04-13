@@ -9,7 +9,7 @@ describe('SQSExt', () => {
     let sqs;
 
     beforeEach(() => {
-        SQSMock = class SQS {};
+        SQSMock = function SQS() {};
         SQSExt = extendSQSMixin(SQSMock);
     });
 
