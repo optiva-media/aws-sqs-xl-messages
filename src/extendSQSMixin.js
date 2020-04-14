@@ -29,18 +29,38 @@ module.exports = (SQS) =>
      * @mixin
      * @alias module:extendSQSMixin~SQSExt
      */
-    class SQSExt extends SQS {
+    class SQSExt /* extends SQS*/ {
         /**
          * Constructor of ExtendSQS
          * @param {Object} options - options as for
          *                  [SQS client]{@link https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/SQS.html#constructor-property}.
          */
         constructor(options) {
-            super(options);
+            // we can't inherit from SQS directly -> https://github.com/aws/aws-sdk-js/issues/2006
+            // using prototypes and node's inherits method did't work either as aws-sdk builds clients dynamically
+            // and there is some error during that building process.
+            // super(options);
+
+            this._client = new SQS(options);
+
             if (!options || !options.extendedConfig) {
                 this.extendedConfig = new ExtendedConfig();
             } else {
                 this.extendedConfig = options.extendedConfig;
+            }
+
+            const SQSPrototype = Object.getPrototypeOf(SQS);
+
+            for (const f in SQSPrototype) {
+                if (Object.prototype.hasOwnProperty.call(SQSPrototype, f)) {
+                    if (
+                        f !== 'constructor' &&
+                        !Object.keys(Object.getPrototypeOf(this)).includes(f) &&
+                        typeof SQSPrototype[f] === 'function'
+                    ) {
+                        this[f] = SQSPrototype[f].bind(this._client);
+                    }
+                }
             }
         }
 
@@ -339,7 +359,7 @@ module.exports = (SQS) =>
             ) {
                 const {mutatedParams, s3Key} = this._messageToS3(params),
                     s3Request = this._uploadToS3(params, s3Key),
-                    sqsRequest = super.sendMessage(mutatedParams);
+                    sqsRequest = this._client.sendMessage(mutatedParams);
 
                 if (callback) {
                     const innerCallback = (error, response) => {
@@ -368,7 +388,7 @@ module.exports = (SQS) =>
 
                 return s3Request;
             } else {
-                return super.sendMessage(params, callback);
+                return this._client.sendMessage(params, callback);
             }
         }
 
@@ -387,7 +407,7 @@ module.exports = (SQS) =>
          * @return {AWS.Request} - [AWS.Request]{@link https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Response.html}.
          */
         receiveMessage(params, callback) {
-            const sqsRequest = super.receiveMessage(params);
+            const sqsRequest = this._client.receiveMessage(params);
 
             if (callback) {
                 const innerCallback = (error, response) => {
@@ -458,7 +478,7 @@ module.exports = (SQS) =>
                 }
             }
 
-            const sqsRequest = super.deleteMessage(mutatedParams);
+            const sqsRequest = this._client.deleteMessage(mutatedParams);
 
             if (callback) {
                 const innerCallback = (error, response) => {
@@ -544,7 +564,7 @@ module.exports = (SQS) =>
                 }
             }
 
-            const sqsRequest = super.deleteMessageBatch(mutatedParams);
+            const sqsRequest = this._client.deleteMessageBatch(mutatedParams);
 
             if (callback) {
                 const innerCallback = (error, response) => {
