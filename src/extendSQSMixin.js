@@ -146,7 +146,7 @@ module.exports = (SQS) => {
 
         clone.MessageAttributes[RESERVE_ATTRIBUTE_NAME] = {
             DataType: 'Number',
-            Value: `${messageSize}`
+            StringValue: `${messageSize}`
         };
 
         clone.MessageBody = `s3://${this.extendedConfig.s3BucketName}/${ret.s3Key}`;
@@ -363,7 +363,7 @@ module.exports = (SQS) => {
 
                 s3Request.send(innerCallback);
             } else {
-                const requestToPromise = s3Request.promise;
+                const requestToPromise = s3Request.promise.bind(s3Request);
                 s3Request.promise = () => {
                     return requestToPromise().then(() => {
                         // TODO: should we mutate the original params object with mutatedParams?
@@ -417,7 +417,7 @@ module.exports = (SQS) => {
 
             sqsRequest.send(innerCallback);
         } else {
-            const sqsRequestPromise = sqsRequest.promise;
+            const sqsRequestPromise = sqsRequest.promise.bind(sqsRequest);
 
             let _sqsResponse;
 
@@ -493,7 +493,7 @@ module.exports = (SQS) => {
 
             sqsRequest.send(innerCallback);
         } else {
-            const sqsRequestPromise = sqsRequest.promise;
+            const sqsRequestPromise = sqsRequest.promise.bind(sqsRequest);
 
             sqsRequest.promise = () => {
                 let _response;
@@ -581,7 +581,7 @@ module.exports = (SQS) => {
 
             sqsRequest.send(innerCallback);
         } else {
-            const sqsRequestPromise = sqsRequest.promise;
+            const sqsRequestPromise = sqsRequest.promise.bind(sqsRequest);
 
             sqsRequest.promise = () => {
                 let _response;

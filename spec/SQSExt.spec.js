@@ -232,11 +232,11 @@ describe('SQSExt', () => {
                 MessageAttributes: {
                     SQSLargePayloadSize: {
                         DataType: 'Number',
-                        Value: jasmine.any(String)
+                        StringValue: jasmine.any(String)
                     }
                 }
             });
-            expect(parseInt(mutatedParams.MessageAttributes.SQSLargePayloadSize.Value)).toEqual(jasmine.any(Number));
+            expect(parseInt(mutatedParams.MessageAttributes.SQSLargePayloadSize.StringValue)).toEqual(jasmine.any(Number));
         });
     });
 
