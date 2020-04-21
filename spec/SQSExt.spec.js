@@ -188,7 +188,7 @@ describe('SQSExt', () => {
                 s3Key = sqs._composeS3Key(queueUrl);
 
             expect(s3Key).toEqual(jasmine.any(String));
-            expect(s3Key).toContain(queueUrl);
+            expect(s3Key).toContain('my-queue');
         });
 
         describe('when config disabled prefixing', () => {
@@ -232,11 +232,11 @@ describe('SQSExt', () => {
                 MessageAttributes: {
                     SQSLargePayloadSize: {
                         DataType: 'Number',
-                        Value: jasmine.any(String)
+                        StringValue: jasmine.any(String)
                     }
                 }
             });
-            expect(parseInt(mutatedParams.MessageAttributes.SQSLargePayloadSize.Value)).toEqual(jasmine.any(Number));
+            expect(parseInt(mutatedParams.MessageAttributes.SQSLargePayloadSize.StringValue)).toEqual(jasmine.any(Number));
         });
     });
 
