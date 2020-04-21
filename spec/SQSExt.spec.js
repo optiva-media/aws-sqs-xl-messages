@@ -188,7 +188,7 @@ describe('SQSExt', () => {
                 s3Key = sqs._composeS3Key(queueUrl);
 
             expect(s3Key).toEqual(jasmine.any(String));
-            expect(s3Key).toContain(queueUrl);
+            expect(s3Key).toContain('my-queue');
         });
 
         describe('when config disabled prefixing', () => {

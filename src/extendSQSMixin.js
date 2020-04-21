@@ -116,10 +116,11 @@ module.exports = (SQS) => {
      * @return {String} the S3 key in which the message's body is stored.
      */
     SQSExt.prototype._composeS3Key = function(QueueUrl) {
-        const randomKey = uuid.v4();
+        const randomKey = uuid.v4(),
+            splitQueue = QueueUrl ? QueueUrl.split('/') : [];
 
-        if (this.extendedConfig.addQueueToS3Key && QueueUrl) {
-            return `${QueueUrl}/${randomKey}`;
+        if (this.extendedConfig.addQueueToS3Key && QueueUrl && splitQueue.length > 0) {
+            return `${splitQueue.pop()}/${randomKey}`;
         } else {
             return randomKey;
         }
@@ -429,6 +430,8 @@ module.exports = (SQS) => {
                     })
                     .then((s3Mapping) => {
                         this._messageFromS3(_sqsResponse, s3Mapping);
+
+                        return _sqsResponse;
                     });
             };
 
