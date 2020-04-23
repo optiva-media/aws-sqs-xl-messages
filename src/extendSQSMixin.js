@@ -399,6 +399,12 @@ module.exports = (SQS) => {
      * @return {AWS.Request} - [AWS.Request]{@link https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Response.html}.
      */
     SQSExt.prototype.receiveMessage = function(params, callback) {
+        if (!params.MessageAttributeNames || !Array.isArray(params.MessageAttributeNames)) {
+            params.MessageAttributeNames = [RESERVE_ATTRIBUTE_NAME];
+        } else if (!params.MessageAttributeNames.includes('All') && !params.MessageAttributeNames.includes(RESERVE_ATTRIBUTE_NAME)) {
+            params.MessageAttributeNames.push(RESERVE_ATTRIBUTE_NAME);
+        }
+
         const sqsRequest = this._client.receiveMessage(params);
 
         if (callback) {
