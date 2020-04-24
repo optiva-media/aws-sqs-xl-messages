@@ -2,6 +2,7 @@
 
 const RESERVE_ATTRIBUTE_NAME = 'SQSLargePayloadSize',
     RECEIPT_HANDLE_SEPARATOR = '-..SEPARATOR..-',
+    ALL_ATTRIBUTES_NAME = 'All',
     _ = require('lodash'),
     uuid = require('uuid'),
     {s3Path2Params} = require('./common/utils'),
@@ -399,6 +400,13 @@ module.exports = (SQS) => {
      * @return {AWS.Request} - [AWS.Request]{@link https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Response.html}.
      */
     SQSExt.prototype.receiveMessage = function(params, callback) {
+        if (!params.MessageAttributeNames || !Array.isArray(params.MessageAttributeNames)) {
+            params.MessageAttributeNames = [RESERVE_ATTRIBUTE_NAME];
+        } else if (!params.MessageAttributeNames.includes(ALL_ATTRIBUTES_NAME) &&
+                        !params.MessageAttributeNames.includes(RESERVE_ATTRIBUTE_NAME)) {
+            params.MessageAttributeNames.push(RESERVE_ATTRIBUTE_NAME);
+        }
+
         const sqsRequest = this._client.receiveMessage(params);
 
         if (callback) {
