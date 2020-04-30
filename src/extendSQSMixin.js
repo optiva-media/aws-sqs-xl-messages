@@ -168,7 +168,9 @@ module.exports = (SQS) => {
      */
     SQSExt.prototype._downloadFromS3 = function({Messages}) {
         const promises = [];
-
+        if (!Messages) {
+            return Promise.resolve();
+        }
         for (const m of Messages) {
             const MessageId = m.MessageId;
 
@@ -196,7 +198,7 @@ module.exports = (SQS) => {
             const ret = {};
 
             for (const {MessageId, response} of results) {
-                ret[MessageId] = response.Body; // TODO: is it better to associate the complete response?
+                ret[MessageId] = response.Body.toString(); // TODO: is it better to associate the complete response?
             }
 
             return ret;
@@ -213,13 +215,15 @@ module.exports = (SQS) => {
      * @param {Object} s3Objects a map between SQS message ids and S3 responses.
      */
     SQSExt.prototype._messageFromS3 = function({Messages}, s3Objects = {}) {
-        Messages.forEach((m) => {
-            if (s3Objects[m.MessageId]) {
-                delete m.MessageAttributes[RESERVE_ATTRIBUTE_NAME];
-                m.ReceiptHandle = `${m.Body}${RECEIPT_HANDLE_SEPARATOR}${m.ReceiptHandle}`;
-                m.Body = s3Objects[m.MessageId];
-            }
-        });
+        if (Messages) {
+            Messages.forEach((m) => {
+                if (s3Objects[m.MessageId]) {
+                    delete m.MessageAttributes[RESERVE_ATTRIBUTE_NAME];
+                    m.ReceiptHandle = `${m.Body}${RECEIPT_HANDLE_SEPARATOR}${m.ReceiptHandle}`;
+                    m.Body = s3Objects[m.MessageId];
+                }
+            });
+        }
     };
 
     /**
