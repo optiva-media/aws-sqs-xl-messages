@@ -1,0 +1,69 @@
+{
+    "name": "aws-sqs-xl-messages",
+    "version": "1.0.0",
+    "description": "This package is responsible for manage sqs messages bigger than 256KB",
+    "main": "src/index.js",
+    "engines": {
+        "node": "^10.15.3",
+        "npm": "^6.10.1"
+    },
+    "eslintConfig": {
+        "env": {
+            "node": true,
+            "jasmine": true
+        }
+    },
+    "scripts": {
+        "postinstall": "if [ -z \"$NO_SETUP\" ]; then grunt setup; fi",
+        "test": "jasmine",
+        "coverage": "nyc npm test",
+        "coverage:ci": "nyc --silent --per-file=true npm test",
+        "plato": "plato -r -n -d reports/plato -e .eslintrc.json src/",
+        "jsdoc": "jsdoc -P package.json -R README.md -c .jsdoc.json"
+    },
+    "files": [
+        "src/"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git+ssh://git@bitbucket.org:optivamedia/aws-sqs-xl-messages.git"
+    },
+    "keywords": [
+        "SQS",
+        "messaging",
+        "large messages",
+        "large payload",
+        "AWS"
+    ],
+    "author": "Optiva Media",
+    "license": "ISC",
+    "homepage": "https://bitbucket.org/optivamedia/aws-sqs-xl-messages/src",
+    "dependencies": {
+        "lodash": "^4.17.15",
+        "uuid": "^7.0.2"
+    },
+    "devDependencies": {
+        "docdash": "^1.2.0",
+        "eslint-config-google": "^0.14.0",
+        "grunt": "^1.0.4",
+        "grunt-cli": "^1.3.2",
+        "grunt-contrib-symlink": "^1.0.0",
+        "grunt-contrib-uglify": "^2.0.0",
+        "grunt-contrib-watch": "^1.0.0",
+        "grunt-env": "^1.0.1",
+        "grunt-eslint": "^22.0.0",
+        "grunt-gitinfo": "^0.1.8",
+        "jasmine": "^3.5.0",
+        "jasmine-console-reporter": "^3.1.0",
+        "jsdoc": "^3.6.3",
+        "load-grunt-config": "^3.0.1",
+        "load-grunt-tasks": "^3.5.2",
+        "mockery": "^2.1.0",
+        "nyc": "^15.0.0",
+        "plato": "^1.7.0",
+        "prettier-eslint": "^9.0.1",
+        "symlink": "^2.1.0",
+        "time-grunt": "^2.0.0",
+        "userhome": "^1.0.0"
+    }
+}

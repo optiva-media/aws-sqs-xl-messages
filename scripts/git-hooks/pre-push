@@ -1,0 +1,23 @@
+#!/bin/bash
+
+## Run tests
+echo "###### Running tests ######"
+OUTPUT=`npm run coverage:ci`
+
+if (( $? != 0 )); then
+    echo "###### Tests failed ######"
+    echo "$OUTPUT"
+    exit 1
+fi
+echo "###### tests passed correctly ######"
+
+## Run jsdoc
+echo "###### Running jsdoc ######"
+OUTPUT=`npm run jsdoc`
+
+if (( $? != 0 )); then
+    echo "###### jsdoc failed ######"
+    echo "$OUTPUT"
+    exit 1
+fi
+echo "###### jsdoc passed correctly ######"

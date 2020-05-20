@@ -1,0 +1,20 @@
+#!/bin/bash
+
+## Check tests have not been deactivated
+ADDED_EXCLUSIVE_TEST=$(git diff -U0 --staged -S"(\W|^)(fdescribe|fit)\s+?\(" --pickaxe-regex | egrep "(^\+.*(fdescribe|fit))|\+{3}")
+
+if [ -n "$ADDED_EXCLUSIVE_TEST" ]; then
+    echo -e "###### You have added calls to either fit(..) or fdescribe(..) thus preventing other tests from running, please fix:\n $ADDED_EXCLUSIVE_TEST"
+    exit 1
+fi
+
+## Run linters
+echo "###### Running linters ######"
+OUTPUT=`grunt precommit`
+
+if (( $? != 0 )); then
+    echo "###### Linters failed ######"
+    echo "$OUTPUT"
+    exit 1
+fi
+echo "###### linters passed correctly ######"
