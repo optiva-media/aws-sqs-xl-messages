@@ -1,0 +1,54 @@
+{
+    "name": "aws-sqs-xl-messages",
+    "version": "1.0.0",
+    "description": "This package is responsible for manage sqs messages bigger than 256KB",
+    "main": "src/index.js",
+    "engines": {
+        "node": "^10.15.3",
+        "npm": "^6.10.1"
+    },
+    "eslintConfig": {
+        "env": {
+            "node": true,
+            "jasmine": true
+        }
+    },
+    "scripts": {
+        "test": "jasmine",
+        "coverage": "nyc npm test",
+        "coverage:ci": "nyc --silent --per-file=true npm test",
+        "plato": "plato -r -n -d reports/plato -e .eslintrc.json src/",
+        "jsdoc": "jsdoc -P package.json -R README.md -c .jsdoc.json"
+    },
+    "files": [
+        "src/"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "git@github.com:optiva-media/aws-sqs-xl-messages.git"
+    },
+    "keywords": [
+        "SQS",
+        "S3",
+        "AWS",
+        "large messages",
+        "large payload"
+    ],
+    "author": "Optiva Media",
+    "license": "MIT",
+    "homepage": "https://github.com/optiva-media/aws-sqs-xl-messages",
+    "dependencies": {
+        "lodash": "^4.17.15",
+        "uuid": "^7.0.2"
+    },
+    "devDependencies": {
+        "docdash": "^1.2.0",
+        "eslint-config-google": "^0.14.0",
+        "jasmine": "^3.5.0",
+        "jasmine-console-reporter": "^3.1.0",
+        "jsdoc": "^3.6.3",
+        "nyc": "^15.0.0",
+        "plato": "^1.7.0",
+        "prettier-eslint": "^9.0.1"
+    }
+}
