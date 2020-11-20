@@ -4,8 +4,8 @@
     "description": "This package is responsible for manage sqs messages bigger than 256KB",
     "main": "src/index.js",
     "engines": {
-        "node": "^10.15.3",
-        "npm": "^6.10.1"
+        "node": ">=10.15.3",
+        "npm": ">=6.10.1"
     },
     "eslintConfig": {
         "env": {
