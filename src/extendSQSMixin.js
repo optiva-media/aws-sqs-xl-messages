@@ -628,5 +628,75 @@ module.exports = (SQS) => {
         return sqsRequest;
     };
 
+    SQSExt.prototype.transformLambdaRecords = async function(records) {
+        const s3Requests = [],
+            s3Responses = {};
+
+        records.forEach(({ messageId, messageAttributes, body }) => {
+            if (
+                messageAttributes &&
+                messageAttributes[RESERVE_ATTRIBUTE_NAME]
+            ) {
+                if (!this.extendedConfig.isLargePayloadSupportEnabled()) {
+                    throw new Error(
+                        "SQSExt::transformLambdaRecords a message refers to an S3 object but large payload support is disabled"
+                    );
+                }
+
+                const params = s3Path2Params(body);
+
+                s3Requests.push(
+                    this.extendedConfig.s3
+                        .getObject(params)
+                        .promise()
+                        .then((response) => {
+                            s3Responses[messageId] = response.Body.toString();
+                        })
+                );
+            }
+        });
+
+        await Promise.all(s3Requests);
+
+        return records.map((record) => {
+            const clone = _.cloneDeep(record);
+
+            if (s3Responses[clone.messageId]) {
+                delete clone.messageAttributes[RESERVE_ATTRIBUTE_NAME];
+                clone.receiptHandle = `${clone.body}${RECEIPT_HANDLE_SEPARATOR}${clone.receiptHandle}`;
+                clone.body = s3Responses[clone.messageId];
+            }
+
+            return clone;
+        });
+    };
+
+    SQSExt.prototype.deleteRecords = async function(records) {
+        await Promise.all(
+            records.map(async ({ receiptHandle }) => {
+                const { s3Bucket, s3Key } = this._parseReceiptHandle(
+                    receiptHandle
+                );
+
+                if (s3Bucket && s3Key) {
+                    const params = {
+                        Bucket: s3Bucket,
+                        Key: s3Key,
+                    };
+
+                    try {
+                        await this.extendedConfig.s3
+                            .deleteObject(params)
+                            .promise();
+                    } catch (e) {
+                        if (e.code !== "NoSuchKey") {
+                            throw e;
+                        }
+                    }
+                }
+            })
+        );
+    };
+
     return SQSExt;
 };

@@ -53,6 +53,36 @@ The AWS SQS XL Messages Library enables you to manage Amazon SQS message payload
     await sqs.deleteMessage(deleteParams).promise();
     ```
 
+### Lambda integration
+
+When working with AWS Lambda, you don't need to call `receiveMessage` and `deleteMessage` manually. It's managed internally by AWS. That means we can't transparently download nor delete S3 objects. It needs to be done manually inside the lambda function.
+
+To solve this issue, two methods are exposed: `transformLambdaRecords` and `deleteRecords`. They take care of downloading messages from S3; and removing them from S3 respectively.
+
+```js
+const { SQS, S3 } = require("aws-sdk"),
+    { SQSExt, Config } = require("aws-sqs-xl-messages")(SQS); // inject the SQS client that will be decorated
+
+
+// lambda handler
+const handler = async (event, context) => {
+    const config = new Config();
+
+    config.enableLargePayloadSupport(new S3(), "my-bucket"); // tell the client which S3 bucket to use.
+
+    const sqsClient = new SQSExt({ extendedConfig: config }),
+        records = await sqsClient.transformLambdaRecords(event.Records);
+
+    // Apply your lambda logic using records. message bodies are now the content from S3.
+
+    await sqsClient.deleteRecords(records);
+};
+
+module.exports = handler;
+```
+
+Optionally, an S3 lifecycle can be set up to delete S3 objects older than a threshold. So you don't need to call `deleteRecords` directly.
+
 ## Limitations
 
 v1.0.0 has a few limitations:
@@ -86,12 +116,3 @@ v1.0.0 has a few limitations:
     let request = sqs.sendMessage(params);
     request.send(callback);
     ```
-
-3. Lambda integration. When working with AWS Lambda, you don't need to call `receiveMessage` and `deleteMessage` manually. It's managed internally by AWS. That means we can't transparently download nor delete S3 objects. It needs to be done manually inside the lambda function.
-
-    ---
-    **NOTE**
-
-    We plan to expose a public API to download S3 objects based on an SQS message in the near future.
-
-    ---
