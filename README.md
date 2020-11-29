@@ -85,7 +85,7 @@ Optionally, an S3 lifecycle can be set up to delete S3 objects older than a thre
 
 ## Limitations
 
-v1.0.0 has a few limitations:
+v1.1.0 has a few limitations:
 
 1. Only the following methods are decorated:
     * **sendMessage**
